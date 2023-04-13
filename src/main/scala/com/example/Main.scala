@@ -10,11 +10,8 @@ import com.comcast.ip4s._
 import smithy4s.http4s.SimpleRestJsonBuilder
 
 object HelloWorldImpl extends HelloWorldService[IO] {
-  def hello(name: String, town: Option[String]): IO[Greeting] = IO.pure {
-    town match {
-      case None    => Greeting(s"Hello " + name + "!")
-      case Some(t) => Greeting(s"Hello " + name + " from " + t + "!")
-    }
+  def healthCheck(): IO[HealthCheckOutput] = IO.pure {
+    HealthCheckOutput("ok")
   }
 }
 
