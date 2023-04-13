@@ -14,5 +14,6 @@ lazy val root = (project in file("."))
     ),
     Docker / dockerExposedPorts := List(9000),
     Docker / packageName := "morning-bird-7081",
-    Docker / dockerRepository := Some("registry.fly.io")
+    Docker / dockerRepository := Some("registry.fly.io"),
+    Docker / version := "latest"
   )
