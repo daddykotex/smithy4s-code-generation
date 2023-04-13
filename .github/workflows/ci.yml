@@ -57,6 +57,6 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_TOKEN }}
       - run: sbt "Docker / stage"
-      - run: flyctl deploy --dockerfile target/docker/stage
+      - run: flyctl deploy --dockerfile target/docker/stage/Dockerfile
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_TOKEN }}
