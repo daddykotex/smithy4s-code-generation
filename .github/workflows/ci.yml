@@ -5,7 +5,6 @@ on:
     branches: ["**"]
   push:
     branches: ["main"]
-    tags: [v*]
 
 jobs:
   build:
@@ -38,7 +37,7 @@ jobs:
   deploy:
     needs: build
     name: Deploy app
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.ref == 'refs/tags/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout current branch (full)
@@ -54,7 +53,9 @@ jobs:
           cache: sbt
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl auth login --verbose --access-token ${{ secrets.FLY_TOKEN }}
+      - run: flyctl auth docker
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_TOKEN }}
       - run: sbt "Docker / publish"
       - run: flyctl deploy --remote-only
         env:
