@@ -4,12 +4,13 @@ ThisBuild / organization := "com.example"
 ThisBuild / organizationName := "example"
 
 lazy val root = (project in file("."))
-  .enablePlugins(Smithy4sCodegenPlugin)
+  .enablePlugins(Smithy4sCodegenPlugin, JavaAppPackaging, DockerPlugin)
   .settings(
     name := "smithy4s-code-generation",
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s-swagger" % smithy4sVersion.value,
       "org.http4s" %% "http4s-ember-server" % "0.23.16"
-    )
+    ),
+    Docker / dockerExposedPorts := List(9000)
   )
