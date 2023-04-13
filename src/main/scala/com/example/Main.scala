@@ -28,7 +28,7 @@ object Routes {
 object Main extends IOApp.Simple {
   val run = Routes.all.flatMap { routes =>
     val thePort = port"9000"
-    val theHost = host"localhost"
+    val theHost = host"0.0.0.0"
     EmberServerBuilder
       .default[IO]
       .withPort(thePort)
