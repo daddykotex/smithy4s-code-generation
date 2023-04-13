@@ -22,7 +22,8 @@ object Routes {
   private val docs: HttpRoutes[IO] =
     smithy4s.http4s.swagger.docs[IO](HelloWorldService)
 
-  val all: Resource[IO, HttpRoutes[IO]] = example.map(_ <+> docs)
+  val all: Resource[IO, HttpRoutes[IO]] =
+    example.map(_ <+> docs <+> Frontend.routes)
 }
 
 object Main extends IOApp.Simple {

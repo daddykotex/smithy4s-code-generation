@@ -14,12 +14,12 @@ object Main {
     dom.document.querySelector("#app").innerHTML = s"""
     <div>
       <a href="https://vitejs.dev" target="_blank">
-        <img src="/vite.svg" class="logo" alt="Vite logo" />
+        <img src="/images/vite.svg" class="logo" alt="Vite logo" />
       </a>
       <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
         <img src="$javascriptLogo" class="logo vanilla" alt="JavaScript logo" />
       </a>
-      <h1>Hello Scala.js and Vite1!</h1>
+      <h1>Hello Scala.js and Vite!</h1>
       <div class="card">
         <button id="counter" type="button"></button>
       </div>
@@ -35,11 +35,15 @@ object Main {
   def setupCounter(element: dom.Element): Unit = {
     var counter = 0
 
-    def setCounter(count: Int): Unit =
+    def setCounter(count: Int): Unit = {
       counter = count
-    element.innerHTML = s"count is $counter"
+      element.innerHTML = s"count is $counter"
+    }
 
-    element.addEventListener("click", (e: dom.Event) => setCounter(counter + 1))
+    element.addEventListener(
+      "click",
+      (e: dom.Event) => setCounter(counter + 1)
+    )
     setCounter(0)
   }
 }
