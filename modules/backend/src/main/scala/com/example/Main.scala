@@ -1,4 +1,4 @@
-package com.example
+package com.example.backend
 
 import smithy4s.hello._
 import cats.effect._
