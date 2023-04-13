@@ -12,5 +12,6 @@ lazy val root = (project in file("."))
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s-swagger" % smithy4sVersion.value,
       "org.http4s" %% "http4s-ember-server" % "0.23.16"
     ),
-    Docker / dockerExposedPorts := List(9000)
+    Docker / dockerExposedPorts := List(9000),
+    Docker / dockerRepository := Some("registry.fly.io")
   )
