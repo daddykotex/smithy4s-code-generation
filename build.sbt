@@ -13,5 +13,6 @@ lazy val root = (project in file("."))
       "org.http4s" %% "http4s-ember-server" % "0.23.16"
     ),
     Docker / dockerExposedPorts := List(9000),
+    Docker / packageName := "morning-bird-7081",
     Docker / dockerRepository := Some("registry.fly.io")
   )

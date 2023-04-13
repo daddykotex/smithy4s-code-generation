@@ -6,7 +6,7 @@ kill_timeout = 5
 processes = []
 
 [build]
-  image = "docker.io/library/smithy4s-code-generation:0.1.0-SNAPSHOT"
+  image = "registry.fly.io/morning-bird-7081"
 
 [env]
 
