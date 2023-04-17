@@ -37,7 +37,10 @@ lazy val frontend = (project in file("modules/frontend"))
     /* Depend on the scalajs-dom library.
      * It provides static types for the browser DOM APIs.
      */
-    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "2.4.0",
+    libraryDependencies ++= Seq(
+      "org.scala-js" %%% "scalajs-dom" % "2.4.0",
+      "com.raquo" %%% "laminar" % "15.0.0"
+    ),
     buildFrontend := {
       import sys.process._
 
