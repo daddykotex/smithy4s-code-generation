@@ -1,0 +1,13 @@
+{
+  "baseDir": "./dist",
+  "files": [
+    {
+      "path": "index.html"
+    },
+    {
+      "path": "assets/*-<hash>.js",
+      "maxPercentIncrease": 10
+    }
+  ],
+  "reportOutput": ["github"]
+}

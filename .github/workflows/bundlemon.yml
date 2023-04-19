@@ -1,0 +1,33 @@
+name: Monitor bundle size
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ["**"]
+    types: [synchronize, opened, reopened]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current branch (full)
+        uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "17.6.0"
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: sbt
+
+      - run: sbt "frontend/buildFrontend"
+
+      - name: Run BundleMon
+        run: ./node_modules/.bin/bundlemon
+        env:
+          CI_COMMIT_SHA: ${{github.event.pull_request.head.sha || github.sha}} # important!
