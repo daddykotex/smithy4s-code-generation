@@ -28,6 +28,7 @@ jobs:
       - run: sbt "frontend/buildFrontend"
 
       - name: Run BundleMon
-        run: ./modules/frontend/node_modules/.bin/bundlemon
+        working-directory: ./modules/frontend
+        run: ./node_modules/.bin/bundlemon
         env:
           CI_COMMIT_SHA: ${{github.event.pull_request.head.sha || github.sha}} # important!
