@@ -1,6 +1,6 @@
 import org.scalajs.linker.interface.ModuleSplitStyle
 
-ThisBuild / scalaVersion := "2.13.9"
+ThisBuild / scalaVersion := "3.2.2"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / organization := "com.example"
 ThisBuild / organizationName := "example"
@@ -12,8 +12,13 @@ lazy val buildFrontend = taskKey[Seq[(File, String)]](
 lazy val root = (project in file("."))
   .aggregate(frontend, backend)
 
+lazy val commonSettings = Def.settings(
+  scalacOptions += "-no-indent"
+)
+
 lazy val frontend = (project in file("modules/frontend"))
   .enablePlugins(ScalaJSPlugin)
+  .settings(commonSettings)
   .settings(
     name := "smithy4s-code-generation-frontend",
     cleanFiles ++= {
@@ -70,6 +75,7 @@ lazy val backend = (project in file("modules/backend"))
     JavaAppPackaging,
     DockerPlugin
   )
+  .settings(commonSettings)
   .settings(
     name := "smithy4s-code-generation-backend",
     libraryDependencies ++= Seq(
