@@ -1,4 +1,4 @@
-package com.example.backend
+package smithy4s_codegen
 
 import cats.effect._
 import cats.syntax.all._

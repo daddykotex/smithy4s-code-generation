@@ -31,7 +31,7 @@ lazy val frontend = (project in file("modules/frontend"))
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.ESModule)
         .withModuleSplitStyle(
-          ModuleSplitStyle.SmallModulesFor(List("com.example.frontend"))
+          ModuleSplitStyle.SmallModulesFor(List("smithy4s_codegen.frontend"))
         )
     },
     /* Depend on the scalajs-dom library.

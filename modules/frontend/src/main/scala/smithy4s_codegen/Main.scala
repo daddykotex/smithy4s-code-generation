@@ -1,4 +1,4 @@
-package com.example.frontend
+package smithy4s_codegen
 
 import com.raquo.laminar.api.L._
 
