@@ -1,6 +1,6 @@
 package smithy4s_codegen.components
 
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.{*, given}
 
 class CodeEditor() {
   private val initial = """|$version: "2"
