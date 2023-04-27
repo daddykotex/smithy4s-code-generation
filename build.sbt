@@ -8,6 +8,9 @@ ThisBuild / organizationName := "example"
 lazy val buildFrontend = taskKey[Seq[(File, String)]](
   "Build the frontend, for production, and return all files generated."
 )
+lazy val baseUri = settingKey[String](
+  """Base URI of the backend, defaults to `""` (empty string)."""
+)
 
 lazy val root = (project in file("."))
   .aggregate(frontend, backend)
@@ -17,7 +20,7 @@ lazy val commonSettings = Def.settings(
 )
 
 lazy val frontend = (project in file("modules/frontend"))
-  .enablePlugins(ScalaJSPlugin)
+  .enablePlugins(ScalaJSPlugin, BuildInfoPlugin)
   .settings(commonSettings)
   .settings(
     name := "smithy4s-code-generation-frontend",
@@ -36,7 +39,7 @@ lazy val frontend = (project in file("modules/frontend"))
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.ESModule)
         .withModuleSplitStyle(
-          ModuleSplitStyle.SmallModulesFor(List("smithy4s_codegen.frontend"))
+          ModuleSplitStyle.SmallModulesFor(List("smithy4s_codegen"))
         )
     },
     /* Depend on the scalajs-dom library.
@@ -46,6 +49,11 @@ lazy val frontend = (project in file("modules/frontend"))
       "org.scala-js" %%% "scalajs-dom" % "2.4.0",
       "com.raquo" %%% "laminar" % "15.0.0"
     ),
+    baseUri := {
+      if (insideCI.value) "" else "http://localhost:9000"
+    },
+    buildInfoKeys := Seq[BuildInfoKey](baseUri),
+    buildInfoPackage := "smithy4s_codegen",
     buildFrontend := {
       import sys.process._
 
