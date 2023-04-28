@@ -28,6 +28,18 @@ operation SmithyValidate {
         @required
         content: String
     }
+    errors: [InvalidSmithyContent]
+}
+
+@error("client")
+structure InvalidSmithyContent {
+    @required
+    errors: ErrorMessages
+}
+
+@length(min: 1)
+list ErrorMessages {
+    member: String
 }
 
 @http(method: "POST", uri: "/smithy4s/convert", code: 200)

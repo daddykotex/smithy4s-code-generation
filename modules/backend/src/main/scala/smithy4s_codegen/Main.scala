@@ -8,6 +8,7 @@ import org.http4s.ember.server._
 import org.http4s.implicits._
 import smithy4s.hello._
 import smithy4s.http4s.SimpleRestJsonBuilder
+import smithy4s_codegen.smithy.validateContent
 
 object HelloWorldImpl extends HelloWorldService[IO] {
   def healthCheck(): IO[HealthCheckOutput] = IO.pure {
@@ -19,7 +20,10 @@ object HelloWorldImpl extends HelloWorldService[IO] {
       .as(Smithy4sConvertOutput("resulst"))
   }
   def smithyValidate(content: String): IO[Unit] = {
-    IO.println(content)
+    IO.delay(validateContent(content)).flatMap {
+      case Right(value) => IO.unit
+      case Left(value)  => IO.raiseError(InvalidSmithyContent(value.toList))
+    }
   }
 }
 
