@@ -1,23 +1,36 @@
 package smithy4s_codegen
 
-import smithy4s.hello._
 import cats.effect._
 import cats.implicits._
-import org.http4s.implicits._
-import org.http4s.ember.server._
-import org.http4s._
 import com.comcast.ip4s._
+import org.http4s._
+import org.http4s.ember.server._
+import org.http4s.implicits._
+import smithy4s.hello._
 import smithy4s.http4s.SimpleRestJsonBuilder
+import smithy4s_codegen.smithy.validateContent
 
 object HelloWorldImpl extends HelloWorldService[IO] {
   def healthCheck(): IO[HealthCheckOutput] = IO.pure {
     HealthCheckOutput("ok")
   }
+
+  def smithy4sConvert(content: String): IO[Smithy4sConvertOutput] = {
+    IO.println(content)
+      .as(Smithy4sConvertOutput("resulst"))
+  }
+  def smithyValidate(content: String): IO[Unit] = {
+    IO.delay(validateContent(content)).flatMap {
+      case Right(value) => IO.unit
+      case Left(value)  => IO.raiseError(InvalidSmithyContent(value.toList))
+    }
+  }
 }
 
 object Routes {
+  import org.http4s.server.middleware.CORS
   private val example: Resource[IO, HttpRoutes[IO]] =
-    SimpleRestJsonBuilder.routes(HelloWorldImpl).resource
+    SimpleRestJsonBuilder.routes(HelloWorldImpl).resource.map(CORS(_))
 
   private val docs: HttpRoutes[IO] =
     smithy4s.http4s.swagger.docs[IO](HelloWorldService)

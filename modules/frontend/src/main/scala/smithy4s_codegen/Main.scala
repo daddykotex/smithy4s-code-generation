@@ -1,6 +1,6 @@
 package smithy4s_codegen
 
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import smithy4s_codegen.components.pages.Main
 
