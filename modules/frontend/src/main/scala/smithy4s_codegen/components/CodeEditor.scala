@@ -1,7 +1,16 @@
 package smithy4s_codegen.components
 
 import com.raquo.laminar.api.L.{*, given}
+import smithy4s_codegen.components.CodeEditor.ValidationResult
 
+object CodeEditor {
+  enum ValidationResult {
+    case Loading
+    case Success
+    case Failed(errors: List[String])
+    case UnknownFailure(ex: Throwable)
+  }
+}
 class CodeEditor() {
   private val initial = """|$version: "2"
                            |
@@ -13,7 +22,7 @@ class CodeEditor() {
                            |}""".stripMargin
   val codeContent = Var(initial)
 
-  val component = {
+  val component =
     div(
       cls := "h-full",
       textArea(
@@ -21,6 +30,43 @@ class CodeEditor() {
         value := initial,
         onMountFocus,
         onInput.mapToValue --> codeContent
+      )
+    )
+
+  def validationResult(
+      validationResult: EventStream[CodeEditor.ValidationResult]
+  ) = {
+    def toImageSrc(v: ValidationResult): String = {
+      v match {
+        case ValidationResult.Loading   => "loading-spinner-svgrepo-com.svg"
+        case ValidationResult.Success   => "checkmark-svgrepo-com.svg"
+        case ValidationResult.Failed(_) => "cross-svgrepo-com.svg"
+        case ValidationResult.UnknownFailure(_) => "cross-svgrepo-com.svg"
+      }
+    }
+    def toAlt(v: ValidationResult): String = {
+      v match {
+        case ValidationResult.Loading           => "Loading"
+        case ValidationResult.Success           => "Success"
+        case ValidationResult.Failed(_)         => "Failed validation"
+        case ValidationResult.UnknownFailure(_) => "Failed"
+      }
+    }
+    def displayIfHasErrors = styleAttr <-- validationResult.map(res =>
+      if (res.isInstanceOf[ValidationResult.Failed]) "display: block"
+      else "display: none"
+    )
+    div(
+      img(
+        cls := "w-8 h-8",
+        alt <-- validationResult.map(toAlt),
+        src <-- validationResult.map(toImageSrc).map("images/" + _)
+      ),
+      div(
+        displayIfHasErrors,
+        child.text <-- validationResult.collect {
+          case ValidationResult.Failed(errors) => errors.mkString("\n")
+        }
       )
     )
   }
