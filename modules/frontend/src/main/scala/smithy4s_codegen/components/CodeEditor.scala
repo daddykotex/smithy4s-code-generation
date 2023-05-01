@@ -6,8 +6,14 @@ import smithy4s_codegen.components.CodeEditor.ValidationResult
 object CodeEditor {
   enum ValidationResult {
     case Loading
-    case Success
+    case Success(content: String)
     case Failed(errors: List[String])
+    case UnknownFailure(ex: Throwable)
+  }
+
+  enum Smithy4sConversionResult {
+    case Loading
+    case Success(content: Map[String, String])
     case UnknownFailure(ex: Throwable)
   }
 }
@@ -36,38 +42,22 @@ class CodeEditor() {
   def validationResult(
       validationResult: EventStream[CodeEditor.ValidationResult]
   ) = {
-    def toImageSrc(v: ValidationResult): String = {
-      v match {
-        case ValidationResult.Loading   => "loading-spinner-svgrepo-com.svg"
-        case ValidationResult.Success   => "checkmark-svgrepo-com.svg"
-        case ValidationResult.Failed(_) => "cross-svgrepo-com.svg"
-        case ValidationResult.UnknownFailure(_) => "cross-svgrepo-com.svg"
-      }
-    }
-    def toAlt(v: ValidationResult): String = {
-      v match {
-        case ValidationResult.Loading           => "Loading"
-        case ValidationResult.Success           => "Success"
-        case ValidationResult.Failed(_)         => "Failed validation"
-        case ValidationResult.UnknownFailure(_) => "Failed"
-      }
-    }
     def displayIfHasErrors = styleAttr <-- validationResult.map(res =>
       if (res.isInstanceOf[ValidationResult.Failed]) "display: block"
       else "display: none"
     )
-    div(
-      img(
-        cls := "w-8 h-8",
-        alt <-- validationResult.map(toAlt),
-        src <-- validationResult.map(toImageSrc).map("images/" + _)
-      ),
-      div(
-        displayIfHasErrors,
-        child.text <-- validationResult.collect {
-          case ValidationResult.Failed(errors) => errors.mkString("\n")
-        }
-      )
+    val errors = div(
+      displayIfHasErrors,
+      child.text <-- validationResult.collect {
+        case ValidationResult.Failed(errors) => errors.mkString("\n")
+      }
     )
+    val icon = ResultIcon(validationResult.map {
+      case ValidationResult.Loading           => ResultIcon.State.Loading
+      case ValidationResult.Success(_)        => ResultIcon.State.Success
+      case ValidationResult.Failed(_)         => ResultIcon.State.Failed
+      case ValidationResult.UnknownFailure(_) => ResultIcon.State.Failed
+    })
+    (icon, errors)
   }
 }

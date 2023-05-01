@@ -1,11 +1,11 @@
 $version: "2"
 
-namespace smithy4s.hello
+namespace smithy4s_codegen.api
 
 use alloy#simpleRestJson
 
 @simpleRestJson
-service HelloWorldService {
+service SmithyCodeGenerationService {
     version: "1.0.0"
     operations: [
         HealthCheck
@@ -50,6 +50,15 @@ operation Smithy4sConvert {
     }
     output := {
         @required
-        message: String
+        generated: Smithy4sGeneratedContent
     }
+}
+
+string Path
+
+string Content
+
+map Smithy4sGeneratedContent {
+    key: Path
+    value: Content
 }
