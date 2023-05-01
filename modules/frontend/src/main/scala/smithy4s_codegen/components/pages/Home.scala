@@ -81,15 +81,22 @@ def Main() = {
         }
     }
 
+  val (validateResultIcon, validateResultErrors) =
+    editor.validationResult(validate)
+
   div(
     cls := "container mx-auto w-full h-full py-2 flex flex-row",
     div(
-      cls := "h-full basis-1/2 p-2",
-      editor.component
+      cls := "h-full basis-1/2 p-2 relative",
+      editor.component,
+      div(
+        cls := "absolute top-2 right-3",
+        validateResultIcon
+      )
     ),
     div(
       cls := "h-full basis-1/2 p-2",
-      editor.validationResult(validate),
+      validateResultErrors,
       viewer.component(convertedToSmithy4s)
     )
   )
