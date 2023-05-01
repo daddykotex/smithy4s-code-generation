@@ -1,6 +1,5 @@
 import org.scalajs.linker.interface.ModuleSplitStyle
 
-ThisBuild / scalaVersion := "3.2.2"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / organization := "com.example"
 ThisBuild / organizationName := "example"
@@ -15,15 +14,12 @@ lazy val baseUri = settingKey[String](
 lazy val root = (project in file("."))
   .aggregate(frontend, backend)
 
-lazy val commonSettings = Def.settings(
-  scalacOptions += "-no-indent"
-)
-
 lazy val frontend = (project in file("modules/frontend"))
   .enablePlugins(ScalaJSPlugin, BuildInfoPlugin)
-  .settings(commonSettings)
   .settings(
     name := "smithy4s-code-generation-frontend",
+    scalacOptions += "-no-indent",
+    scalaVersion := "3.2.2",
     cleanFiles ++= {
       val dir = baseDirectory.value
       Seq(dir / "dist", dir / "node_modules")
@@ -83,13 +79,14 @@ lazy val backend = (project in file("modules/backend"))
     JavaAppPackaging,
     DockerPlugin
   )
-  .settings(commonSettings)
   .settings(
     name := "smithy4s-code-generation-backend",
+    scalaVersion := "2.13.10",
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s-swagger" % smithy4sVersion.value,
       "software.amazon.smithy" % "smithy-model" % "1.30.0",
+      "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % "0.17.5",
       "org.http4s" %% "http4s-ember-server" % "0.23.16"
     ),
     Compile / resourceGenerators += Def.task {
