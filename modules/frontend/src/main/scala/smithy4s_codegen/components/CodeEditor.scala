@@ -6,8 +6,14 @@ import smithy4s_codegen.components.CodeEditor.ValidationResult
 object CodeEditor {
   enum ValidationResult {
     case Loading
-    case Success
+    case Success(content: String)
     case Failed(errors: List[String])
+    case UnknownFailure(ex: Throwable)
+  }
+
+  enum Smithy4sConversionResult {
+    case Loading
+    case Success(content: Map[String, String])
     case UnknownFailure(ex: Throwable)
   }
 }
@@ -38,16 +44,16 @@ class CodeEditor() {
   ) = {
     def toImageSrc(v: ValidationResult): String = {
       v match {
-        case ValidationResult.Loading   => "loading-spinner-svgrepo-com.svg"
-        case ValidationResult.Success   => "checkmark-svgrepo-com.svg"
-        case ValidationResult.Failed(_) => "cross-svgrepo-com.svg"
+        case ValidationResult.Loading    => "loading-spinner-svgrepo-com.svg"
+        case ValidationResult.Success(_) => "checkmark-svgrepo-com.svg"
+        case ValidationResult.Failed(_)  => "cross-svgrepo-com.svg"
         case ValidationResult.UnknownFailure(_) => "cross-svgrepo-com.svg"
       }
     }
     def toAlt(v: ValidationResult): String = {
       v match {
         case ValidationResult.Loading           => "Loading"
-        case ValidationResult.Success           => "Success"
+        case ValidationResult.Success(_)        => "Success"
         case ValidationResult.Failed(_)         => "Failed validation"
         case ValidationResult.UnknownFailure(_) => "Failed"
       }

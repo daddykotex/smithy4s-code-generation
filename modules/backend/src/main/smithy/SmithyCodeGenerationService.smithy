@@ -50,6 +50,15 @@ operation Smithy4sConvert {
     }
     output := {
         @required
-        message: String
+        generated: Smithy4sGeneratedContent
     }
+}
+
+string Path
+
+string Content
+
+map Smithy4sGeneratedContent {
+    key: Path
+    value: Content
 }

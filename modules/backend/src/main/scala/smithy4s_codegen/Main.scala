@@ -10,6 +10,7 @@ import smithy4s._
 import smithy4s_codegen.api._
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s_codegen.smithy.Validate
+import smithy4s_codegen.generation.Smithy4s
 
 object SmithyCodeGenerationServiceImpl extends SmithyCodeGenerationService[IO] {
   def healthCheck(): IO[HealthCheckOutput] = IO.pure {
@@ -17,8 +18,14 @@ object SmithyCodeGenerationServiceImpl extends SmithyCodeGenerationService[IO] {
   }
 
   def smithy4sConvert(content: String): IO[Smithy4sConvertOutput] = {
-    IO.println(content)
-      .as(Smithy4sConvertOutput("resulst"))
+    Smithy4s
+      .generate(content)
+      .map {
+        _.map { case (path, content) =>
+          Path(path.toString()) -> Content(content)
+        }.toMap
+      }
+      .map(Smithy4sConvertOutput(_))
   }
   def smithyValidate(content: String): IO[Unit] = {
     IO.delay(Validate.validateContent(content)).flatMap {
