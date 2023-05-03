@@ -34,9 +34,10 @@ lazy val frontend = (project in file("modules/frontend"))
      */
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.ESModule)
-        .withModuleSplitStyle(
-          ModuleSplitStyle.SmallModulesFor(List("smithy4s_codegen"))
-        )
+        // .withModuleSplitStyle(
+        //   ModuleSplitStyle.SmallModulesFor(List("smithy4s_codegen"))
+        // )
+        .withSourceMap(true)
     },
     /* Depend on the scalajs-dom library.
      * It provides static types for the browser DOM APIs.
