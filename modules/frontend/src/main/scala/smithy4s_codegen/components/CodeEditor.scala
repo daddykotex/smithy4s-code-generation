@@ -1,20 +1,24 @@
 package smithy4s_codegen.components
 
-import com.raquo.laminar.api.L.{*, given}
-import smithy4s_codegen.components.CodeEditor.ValidationResult
+import com.raquo.laminar.api.L._
+import smithy4s_codegen.api.Content
+import smithy4s_codegen.api.Path
 
 object CodeEditor {
-  enum ValidationResult {
-    case Loading
-    case Success(content: String)
-    case Failed(errors: List[String])
-    case UnknownFailure(ex: Throwable)
+  sealed trait ValidationResult
+  object ValidationResult {
+    case object Loading extends ValidationResult
+    case class Success(content: String) extends ValidationResult
+    case class Failed(errors: List[String]) extends ValidationResult
+    case class UnknownFailure(ex: Throwable) extends ValidationResult
   }
 
-  enum Smithy4sConversionResult {
-    case Loading
-    case Success(content: Map[String, String])
-    case UnknownFailure(ex: Throwable)
+  sealed trait Smithy4sConversionResult
+  object Smithy4sConversionResult {
+    case object Loading extends Smithy4sConversionResult
+    case class Success(content: Map[Path, Content])
+        extends Smithy4sConversionResult
+    case class UnknownFailure(ex: Throwable) extends Smithy4sConversionResult
   }
 }
 class CodeEditor() {
@@ -43,20 +47,21 @@ class CodeEditor() {
       validationResult: EventStream[CodeEditor.ValidationResult]
   ) = {
     def displayIfHasErrors = styleAttr <-- validationResult.map(res =>
-      if (res.isInstanceOf[ValidationResult.Failed]) "display: block"
+      if (res.isInstanceOf[CodeEditor.ValidationResult.Failed]) "display: block"
       else "display: none"
     )
     val errors = div(
       displayIfHasErrors,
       child.text <-- validationResult.collect {
-        case ValidationResult.Failed(errors) => errors.mkString("\n")
+        case CodeEditor.ValidationResult.Failed(errors) => errors.mkString("\n")
       }
     )
     val icon = ResultIcon(validationResult.map {
-      case ValidationResult.Loading           => ResultIcon.State.Loading
-      case ValidationResult.Success(_)        => ResultIcon.State.Success
-      case ValidationResult.Failed(_)         => ResultIcon.State.Failed
-      case ValidationResult.UnknownFailure(_) => ResultIcon.State.Failed
+      case CodeEditor.ValidationResult.Loading    => ResultIcon.State.Loading
+      case CodeEditor.ValidationResult.Success(_) => ResultIcon.State.Success
+      case CodeEditor.ValidationResult.Failed(_)  => ResultIcon.State.Failed
+      case CodeEditor.ValidationResult.UnknownFailure(_) =>
+        ResultIcon.State.Failed
     })
     (icon, errors)
   }

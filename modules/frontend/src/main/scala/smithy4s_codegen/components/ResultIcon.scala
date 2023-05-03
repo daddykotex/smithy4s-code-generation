@@ -1,13 +1,14 @@
 package smithy4s_codegen.components
 
-import com.raquo.laminar.api.L.{*, given}
+import com.raquo.laminar.api.L._
 import smithy4s_codegen.components.CodeEditor.ValidationResult
 
 object ResultIcon {
-  enum State {
-    case Loading
-    case Success
-    case Failed
+  sealed trait State
+  object State {
+    case object Loading extends State
+    case object Success extends State
+    case object Failed extends State
   }
 
   def apply(result: EventStream[ResultIcon.State]) =
