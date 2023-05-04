@@ -21,3 +21,9 @@ It is recomended that you have 3 long running proccesses to develop this applica
 3. cd into `modules/frontend` and run `npm i && npm run dev`
 
 You could drop 3 if you've built it once and your backend is running serving the generated frontend assets.
+
+
+## Fly.io
+
+Use the following command to use the right version of flyctl via nix:
+`nix-shell -p flyctl -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/555bd32eb477d657e133ad14a5f99ac685bfdd61.tar.gz`
