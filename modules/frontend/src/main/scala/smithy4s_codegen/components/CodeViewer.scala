@@ -1,11 +1,13 @@
 package smithy4s_codegen.components
 
-import com.raquo.laminar.api.L.{*, given}
+import com.raquo.laminar.api.L._
+import smithy4s_codegen.api.Content
+import smithy4s_codegen.api.Path
 import smithy4s_codegen.components.CodeEditor.Smithy4sConversionResult
 
 class CodeViewer() {
   def component(content: EventStream[CodeEditor.Smithy4sConversionResult]) = {
-    val success: EventStream[List[(String, String)]] = content.collect {
+    val success: EventStream[List[(Path, Content)]] = content.collect {
       case Smithy4sConversionResult.Success(content) => content.toList
     }
     val fileAndContent: Signal[List[HtmlElement]] =
@@ -26,9 +28,9 @@ class CodeViewer() {
   }
 
   private def render(
-      path: String,
-      initial: (String, String),
-      signal: Signal[(String, String)]
+      path: Path,
+      initial: (Path, Content),
+      signal: Signal[(Path, Content)]
   ): HtmlElement =
     div(
       p("path: " + path),
@@ -36,7 +38,7 @@ class CodeViewer() {
         "content: ",
         code(
           cls := "block p-2.5 text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300",
-          pre(child.text <-- signal.map(_._2))
+          pre(child.text <-- signal.map(_._2.value))
         )
       )
     )

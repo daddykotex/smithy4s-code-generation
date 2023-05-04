@@ -1,103 +1,74 @@
 package smithy4s_codegen.components.pages
 
-import com.raquo.airstream.web.AjaxStream
-import com.raquo.airstream.web.AjaxStream.AjaxStreamError
-import com.raquo.laminar.api.L.{*, given}
+import com.raquo.laminar.api.L._
 import org.scalajs.dom.ext.Ajax.InputData
 import smithy4s_codegen.BuildInfo.baseUri
-import smithy4s_codegen.components.CodeEditor
-import smithy4s_codegen.api.SmithyValidateError
-import smithy4s_codegen.api.SmithyValidateInput
-import smithy4s_codegen.api.Smithy4sConvertOutput
 import smithy4s_codegen.api.Smithy4sConvertInput
+import smithy4s_codegen.api.Smithy4sConvertOutput
+import smithy4s_codegen.api.SmithyCodeGenerationService
+import smithy4s_codegen.components.CodeEditor
 import smithy4s_codegen.components.CodeEditor.ValidationResult
 import smithy4s_codegen.components.CodeViewer
 
 import scalajs.js.JSON.stringify
 import scalajs.js.JSON.parse
+import smithy4s_codegen.api.InvalidSmithyContent
 
-def Main() = {
-  val editor = new CodeEditor()
-  val viewer = new CodeViewer()
+object Home {
+  def apply(api: SmithyCodeGenerationService[EventStream]) = {
+    val editor = new CodeEditor()
+    val viewer = new CodeViewer()
 
-  val validate = editor.codeContent.signal
-    .composeChanges(_.debounce(2000))
-    .flatMap { value =>
-      AjaxStream
-        .post(
-          url = s"$baseUri/smithy/validate",
-          data = stringify {
-            val payload = new SmithyValidateInput
-            payload.content = value
-            payload
-          },
-          headers = Map("Content-Type" -> "application/json")
-        )
-        .map { r => CodeEditor.ValidationResult.Success(value) }
-        .recover {
-          case ex: AjaxStreamError =>
-            if (ex.xhr.status != 400)
-              Some(CodeEditor.ValidationResult.UnknownFailure(ex))
-            else {
-              val result =
-                parse(ex.xhr.responseText).asInstanceOf[SmithyValidateError]
-              Some(CodeEditor.ValidationResult.Failed(result.errors.toList))
-            }
-          case ex: Throwable =>
-            Some(CodeEditor.ValidationResult.UnknownFailure(ex))
-        }
-    }
-
-  val convertedToSmithy4s: EventStream[CodeEditor.Smithy4sConversionResult] =
-    validate.compose {
-      _.collect { case ValidationResult.Success(content) =>
-        content
-      }
+    val validate: EventStream[CodeEditor.ValidationResult] =
+      editor.codeContent.signal
+        .composeChanges(_.debounce(2000))
         .flatMap { value =>
-          AjaxStream
-            .post(
-              url = s"$baseUri/smithy4s/convert",
-              data = stringify {
-                val payload = new Smithy4sConvertInput
-                payload.content = value
-                payload
-              },
-              headers = Map("Content-Type" -> "application/json")
-            )
-            .map { r =>
-              val result =
-                parse(r.responseText).asInstanceOf[Smithy4sConvertOutput]
-              val content = scalajs.js.Object
-                .entries(result.generated)
-                .map { case scalajs.js.Tuple2(key, content) =>
-                  key -> content.asInstanceOf[String]
-                }
-                .toMap
-              CodeEditor.Smithy4sConversionResult.Success(content)
-            }
-            .recover { case ex: Throwable =>
-              Some(CodeEditor.Smithy4sConversionResult.UnknownFailure(ex))
+          api
+            .smithyValidate(value)
+            .map(_ => CodeEditor.ValidationResult.Success(value))
+            .recover {
+              case InvalidSmithyContent(errors) =>
+                Some(CodeEditor.ValidationResult.Failed(errors))
+              case ex: Throwable =>
+                Some(CodeEditor.ValidationResult.UnknownFailure(ex))
             }
         }
-    }
 
-  val (validateResultIcon, validateResultErrors) =
-    editor.validationResult(validate)
+    val convertedToSmithy4s: EventStream[CodeEditor.Smithy4sConversionResult] =
+      validate.compose {
+        _.collect { case ValidationResult.Success(content) =>
+          content
+        }
+          .flatMap { value =>
+            api
+              .smithy4sConvert(value)
+              .map(r =>
+                CodeEditor.Smithy4sConversionResult.Success(r.generated)
+              )
+              .recover { case ex: Throwable =>
+                Some(CodeEditor.Smithy4sConversionResult.UnknownFailure(ex))
+              }
+          }
+      }
 
-  div(
-    cls := "container mx-auto h-full py-2 flex",
+    val (validateResultIcon, validateResultErrors) =
+      editor.validationResult(validate)
+
     div(
-      cls := "h-full p-2 relative basis-1/2",
-      editor.component,
+      cls := "container mx-auto h-full py-2 flex",
       div(
-        cls := "absolute top-2 right-3",
-        validateResultIcon
+        cls := "h-full p-2 relative basis-1/2",
+        editor.component,
+        div(
+          cls := "absolute top-2 right-3",
+          validateResultIcon
+        )
+      ),
+      div(
+        cls := "h-full p-2 basis-1/2 overflow-x-scroll",
+        validateResultErrors,
+        viewer.component(convertedToSmithy4s)
       )
-    ),
-    div(
-      cls := "h-full p-2 basis-1/2 overflow-x-scroll",
-      validateResultErrors,
-      viewer.component(convertedToSmithy4s)
     )
-  )
+  }
 }

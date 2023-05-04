@@ -3,6 +3,7 @@ import org.scalajs.linker.interface.ModuleSplitStyle
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / organization := "com.example"
 ThisBuild / organizationName := "example"
+ThisBuild / scalaVersion := "2.13.10"
 
 lazy val buildFrontend = taskKey[Seq[(File, String)]](
   "Build the frontend, for production, and return all files generated."
@@ -12,38 +13,36 @@ lazy val baseUri = settingKey[String](
 )
 
 lazy val root = (project in file("."))
-  .aggregate(frontend, backend)
+  .aggregate(api, frontend, backend)
+
+lazy val api = (project in file("modules/api"))
 
 lazy val frontend = (project in file("modules/frontend"))
-  .enablePlugins(ScalaJSPlugin, BuildInfoPlugin)
+  .enablePlugins(ScalaJSPlugin, BuildInfoPlugin, Smithy4sCodegenPlugin)
+  .dependsOn(api)
   .settings(
     name := "smithy4s-code-generation-frontend",
-    scalacOptions += "-no-indent",
-    scalaVersion := "3.2.2",
     cleanFiles ++= {
       val dir = baseDirectory.value
       Seq(dir / "dist", dir / "node_modules")
     },
     scalaJSUseMainModuleInitializer := true,
-    /* Configure Scala.js to emit modules in the optimal way to
-     * connect to Vite's incremental reload.
-     * - emit ECMAScript modules
-     * - emit as many small modules as possible for classes in the "livechart" package
-     * - emit as few (large) modules as possible for all other classes
-     *   (in particular, for the standard library)
-     */
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.ESModule)
         .withModuleSplitStyle(
           ModuleSplitStyle.SmallModulesFor(List("smithy4s_codegen"))
         )
+      // .withSourceMap(true) -- enable for source-map-explorer
     },
     /* Depend on the scalajs-dom library.
      * It provides static types for the browser DOM APIs.
      */
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom" % "2.4.0",
-      "com.raquo" %%% "laminar" % "15.0.0"
+      "com.raquo" %%% "laminar" % "15.0.0",
+      "com.disneystreaming.smithy4s" %%% "smithy4s-http4s" % smithy4sVersion.value,
+      "org.http4s" %%% "http4s-dom" % "0.2.3",
+      "org.http4s" %%% "http4s-client" % "0.23.16"
     ),
     baseUri := {
       if (insideCI.value) "" else "http://localhost:9000"
@@ -74,6 +73,7 @@ lazy val frontend = (project in file("modules/frontend"))
   )
 
 lazy val backend = (project in file("modules/backend"))
+  .dependsOn(api)
   .enablePlugins(
     Smithy4sCodegenPlugin,
     JavaAppPackaging,
@@ -81,12 +81,11 @@ lazy val backend = (project in file("modules/backend"))
   )
   .settings(
     name := "smithy4s-code-generation-backend",
-    scalaVersion := "2.13.10",
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s-swagger" % smithy4sVersion.value,
+      "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
       "software.amazon.smithy" % "smithy-model" % "1.30.0",
-      "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % "0.17.5",
       "org.http4s" %% "http4s-ember-server" % "0.23.16"
     ),
     Compile / resourceGenerators += Def.task {
