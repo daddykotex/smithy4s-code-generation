@@ -1,15 +1,17 @@
 package smithy4s_codegen.generation
 
-import cats.syntax.all._
 import cats.data.NonEmptyList
-import cats.effect.syntax.all._
-import software.amazon.smithy.model.Model
-import scala.jdk.CollectionConverters._
-import smithy4s.codegen._
-import java.nio.file.Path
-import cats.effect.Resource
 import cats.effect.IO
+import cats.effect.Resource
+import cats.effect.syntax.all._
+import cats.syntax.all._
+import smithy4s.codegen._
+import software.amazon.smithy.model.Model
+
+import java.io.File
 import java.nio.file.Files
+import java.nio.file.Path
+import scala.jdk.CollectionConverters._
 
 final case class Smithy4sWorkspace(
     input: os.Path,
@@ -17,8 +19,10 @@ final case class Smithy4sWorkspace(
     specs: List[os.Path]
 )
 
-object Smithy4s {
-  def generate(content: String): IO[Vector[(Path, String)]] = {
+final class Smithy4s(localJars: List[File]) {
+  def generate(
+      content: String
+  ): IO[Vector[(Path, String)]] = {
     val prepare = for {
       workspace <- newWorkspace
       _ <- IO.delay(os.makeDir(workspace.input)).toResource
@@ -39,7 +43,7 @@ object Smithy4s {
         dependencies = List.empty,
         repositories = List.empty,
         transformers = List.empty,
-        localJars = List.empty
+        localJars = localJars.map(os.Path(_))
       )
       IO.delay(Codegen.processSpecs(args))
         .flatMap(withContents(workspace.output))
