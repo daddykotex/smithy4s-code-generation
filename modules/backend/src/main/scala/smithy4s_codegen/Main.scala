@@ -32,7 +32,7 @@ class SmithyCodeGenerationServiceImpl(generator: Smithy4s, validator: Validate)
       .liftTo[IO]
       .map {
         _.map { case (path, r) =>
-          Path(path.toString()) -> Content(r.content)
+          Path(s"$path/${r.name}.scala") -> Content(r.content)
         }.toMap
       }
       .map(Smithy4sConvertOutput(_))
