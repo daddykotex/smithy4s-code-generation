@@ -11,12 +11,13 @@ import org.http4s.implicits._
 import smithy4s._
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s_codegen.api._
-import smithy4s_codegen.generation.Smithy4s
-import smithy4s_codegen.smithy.Validate
+import smithy4s_codegen.generation._
+import smithy4s_codegen.smithy._
 
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
+import scala.concurrent.duration._
 
 class SmithyCodeGenerationServiceImpl(generator: Smithy4s, validator: Validate)
     extends SmithyCodeGenerationService[IO] {
@@ -27,9 +28,11 @@ class SmithyCodeGenerationServiceImpl(generator: Smithy4s, validator: Validate)
   def smithy4sConvert(content: String): IO[Smithy4sConvertOutput] = {
     generator
       .generate(content)
+      .leftMap(errors => InvalidSmithyContent(errors.map(_.getMessage)))
+      .liftTo[IO]
       .map {
-        _.map { case (path, content) =>
-          Path(path.toString()) -> Content(content)
+        _.map { case (path, r) =>
+          Path(path.toString()) -> Content(r.content)
         }.toMap
       }
       .map(Smithy4sConvertOutput(_))
@@ -46,9 +49,8 @@ object Routes {
   import org.http4s.server.middleware.CORS
   def exampleRoute(localJars: List[File]): Resource[IO, HttpRoutes[IO]] =
     Resource
-      .eval(
-        (Validate(localJars), IO.pure(new Smithy4s(localJars))).tupled
-      )
+      .eval(ModelLoader(localJars))
+      .map(ml => (new Validate(ml), new Smithy4s(ml)))
       .flatMap { case (validator, generator) =>
         SimpleRestJsonBuilder
           .routes(new SmithyCodeGenerationServiceImpl(generator, validator))
@@ -90,16 +92,18 @@ object Main extends IOApp.Simple {
   val server = for {
     smithyClasspath <- envSmithyClasspath.toResource
     routes <- Routes.exampleRoute(smithyClasspath).map(Routes.fullRoutes)
-  } yield {
-    val thePort = port"9000"
-    val theHost = host"0.0.0.0"
-    EmberServerBuilder
-      .default[IO]
-      .withPort(thePort)
-      .withHost(theHost)
-      .withHttpApp(routes.orNotFound)
-      .build
-  }
+    thePort = port"9000"
+    theHost = host"0.0.0.0"
+    res <-
+      EmberServerBuilder
+        .default[IO]
+        .withPort(thePort)
+        .withHost(theHost)
+        .withHttpApp(routes.orNotFound)
+        .withShutdownTimeout(5.seconds)
+        .build
+    _ <- Resource.eval(IO.println(s"Server started on: $theHost:$thePort"))
+  } yield res
   override val run = server.useForever
 
 }

@@ -52,6 +52,7 @@ operation Smithy4sConvert {
         @required
         generated: Smithy4sGeneratedContent
     }
+    errors: [InvalidSmithyContent]
 }
 
 string Path
