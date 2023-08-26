@@ -1,19 +1,27 @@
 package smithy4s_codegen.smithy
 
 import cats.data.NonEmptyList
+import cats.effect.IO
+import cats.effect.kernel.Resource
+import cats.implicits._
 import software.amazon.smithy.model.Model
+import software.amazon.smithy.model.loader.ModelAssembler
+import software.amazon.smithy.model.loader.ModelDiscovery
+import software.amazon.smithy.model.loader.ModelManifestException
+
+import java.io.File
+import java.nio.file.FileSystems
+import java.nio.file.Files
 import scala.jdk.CollectionConverters._
 
-object Validate {
-  def validateContent(content: String): Either[NonEmptyList[String], Unit] = {
-    val res =
-      Model.assembler().addUnparsedModel("ui.smithy", content).assemble()
-    if (res.isBroken()) {
-      val errorList =
-        res.getValidationEvents().asScala.toList.map(_.getMessage())
-      Left(NonEmptyList.of(errorList.head, errorList.tail: _*))
-    } else {
-      Right(())
-    }
+final class Validate(modelLoader: ModelLoader) {
+  def validateContent(
+      content: String
+  ): IO[Either[List[String], Unit]] = {
+    modelLoader
+      .load(content)
+      .leftMap(_.map(_.getMessage()))
+      .map(_ => ())
+      .pure[IO]
   }
 }
