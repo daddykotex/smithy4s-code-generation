@@ -10,6 +10,7 @@ export default defineConfig({
   ],
   server: {
     proxy: {
+      // For requests to /api/**, drop the prefix and proxy the rest to the backend.
       "/api": {
         target: "http://localhost:9000",
         rewrite: (path) => path.replace(/^\/api/, ""),
