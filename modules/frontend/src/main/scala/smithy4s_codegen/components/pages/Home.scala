@@ -2,7 +2,6 @@ package smithy4s_codegen.components.pages
 
 import com.raquo.laminar.api.L._
 import org.scalajs.dom.ext.Ajax.InputData
-import smithy4s_codegen.BuildInfo.baseUri
 import smithy4s_codegen.api.Smithy4sConvertInput
 import smithy4s_codegen.api.Smithy4sConvertOutput
 import smithy4s_codegen.api.SmithyCodeGenerationService
@@ -29,7 +28,7 @@ object Home {
             .recover {
               case InvalidSmithyContent(errors) =>
                 Some(CodeEditor.ValidationResult.Failed(errors))
-              case ex: Throwable =>
+              case ex =>
                 Some(CodeEditor.ValidationResult.UnknownFailure(ex))
             }
         }
@@ -45,7 +44,7 @@ object Home {
               .map(r =>
                 CodeEditor.Smithy4sConversionResult.Success(r.generated)
               )
-              .recover { case ex: Throwable =>
+              .recover { ex =>
                 Some(CodeEditor.Smithy4sConversionResult.UnknownFailure(ex))
               }
           }

@@ -11,6 +11,8 @@ import org.http4s.Uri
 import smithy4s_codegen.BuildInfo.baseUri
 import smithy4s.kinds.PolyFunction
 import cats.effect.std.Dispatcher
+import org.http4s.client.Client
+import util.chaining._
 
 object ApiBuilder {
   def build: Resource[IO, SmithyCodeGenerationService[EventStream]] =
@@ -19,7 +21,10 @@ object ApiBuilder {
         ec <- IO.executionContext.toResource
         client <-
           SimpleRestJsonBuilder(SmithyCodeGenerationService)
-            .client(FetchClientBuilder[IO].create)
+            .client(
+              FetchClientBuilder[IO].create
+                .pipe(resetBaseUri)
+            )
             .uri(Uri.unsafeFromString(baseUri))
             .resource
       } yield {
@@ -30,4 +35,10 @@ object ApiBuilder {
       }
 
     }
+
+  private def resetBaseUri(c: Client[IO]): Client[IO] = Client[IO] { req =>
+    val amendedUri = req.uri.copy(scheme = None, authority = None)
+    val amendedRequest = req.withUri(amendedUri)
+    c.run(amendedRequest)
+  }
 }

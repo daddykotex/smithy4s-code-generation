@@ -8,4 +8,12 @@ export default defineConfig({
       projectID: "frontend",
     }),
   ],
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:9000",
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
+    },
+  },
 });

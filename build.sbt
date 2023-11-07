@@ -45,7 +45,7 @@ lazy val frontend = (project in file("modules/frontend"))
       "org.http4s" %%% "http4s-client" % "0.23.16"
     ),
     baseUri := {
-      if (insideCI.value) "" else "http://localhost:9000"
+      if (insideCI.value) "" else "/api"
     },
     buildInfoKeys := Seq[BuildInfoKey](baseUri),
     buildInfoPackage := "smithy4s_codegen",
