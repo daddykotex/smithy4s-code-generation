@@ -18,7 +18,6 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
 import scala.concurrent.duration._
-import org.http4s.server.middleware.Logger
 
 class SmithyCodeGenerationServiceImpl(generator: Smithy4s, validator: Validate)
     extends SmithyCodeGenerationService[IO] {
@@ -100,13 +99,7 @@ object Main extends IOApp.Simple {
         .default[IO]
         .withPort(thePort)
         .withHost(theHost)
-        .withHttpApp(
-          Logger.httpApp(
-            logHeaders = true,
-            logBody = true,
-            logAction = Some(IO.println(_: String))
-          )(routes.orNotFound)
-        )
+        .withHttpApp(routes.orNotFound)
         .withShutdownTimeout(5.seconds)
         .build
     _ <- Resource.eval(IO.println(s"Server started on: $theHost:$thePort"))
