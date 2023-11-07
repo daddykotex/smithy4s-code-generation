@@ -10,7 +10,6 @@ import org.http4s.client.Client
 import org.http4s.dom.FetchClientBuilder
 import org.scalajs.dom
 import smithy4s.http4s.SimpleRestJsonBuilder
-import smithy4s_codegen.BuildInfo.baseUri
 import smithy4s_codegen.api.SmithyCodeGenerationService
 import smithy4s_codegen.components.pages.Home
 

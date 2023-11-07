@@ -46,7 +46,6 @@ class SmithyCodeGenerationServiceImpl(generator: Smithy4s, validator: Validate)
 }
 
 object Routes {
-  import org.http4s.server.middleware.CORS
   def exampleRoute(localJars: List[File]): Resource[IO, HttpRoutes[IO]] =
     Resource
       .eval(ModelLoader(localJars))
@@ -55,7 +54,6 @@ object Routes {
         SimpleRestJsonBuilder
           .routes(new SmithyCodeGenerationServiceImpl(generator, validator))
           .resource
-          .map(CORS(_))
       }
 
   private val docs: HttpRoutes[IO] =
