@@ -96,7 +96,7 @@ object PermalinkCodec {
 
   private def decode(hash: String): Option[String] = hash match {
     case s"#code=$content" =>
-      Some(lzstring.decompressFromEncodedURIComponent(content))
+      Option(lzstring.decompressFromEncodedURIComponent(content))
     case _ => None
   }
 }
