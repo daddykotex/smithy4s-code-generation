@@ -1,17 +1,13 @@
 package smithy4s_codegen.components.pages
 
 import com.raquo.laminar.api.L._
-import org.scalajs.dom.ext.Ajax.InputData
-import smithy4s_codegen.api.Smithy4sConvertInput
-import smithy4s_codegen.api.Smithy4sConvertOutput
 import smithy4s_codegen.api.SmithyCodeGenerationService
 import smithy4s_codegen.components.CodeEditor
 import smithy4s_codegen.components.CodeEditor.ValidationResult
 import smithy4s_codegen.components.CodeViewer
 
-import scalajs.js.JSON.stringify
-import scalajs.js.JSON.parse
 import smithy4s_codegen.api.InvalidSmithyContent
+import smithy4s_codegen.components.PermalinkCodec
 
 object Home {
   def apply(api: SmithyCodeGenerationService[EventStream]) = {
@@ -22,6 +18,8 @@ object Home {
       editor.codeContent.signal
         .composeChanges(_.debounce(2000))
         .flatMap { value =>
+          PermalinkCodec.write(value)
+
           api
             .smithyValidate(value)
             .map(_ => CodeEditor.ValidationResult.Success(value))

@@ -2,7 +2,6 @@ package smithy4s_codegen
 
 import cats.effect.Resource
 import cats.effect.IO
-import cats.effect.syntax.resource._
 import smithy4s_codegen.api.SmithyCodeGenerationService
 import com.raquo.airstream.core.EventStream
 import smithy4s.http4s.SimpleRestJsonBuilder
