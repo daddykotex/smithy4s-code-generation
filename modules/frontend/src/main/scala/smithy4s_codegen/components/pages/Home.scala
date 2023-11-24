@@ -1,5 +1,6 @@
 package smithy4s_codegen.components.pages
 
+import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.laminar.api.L._
 import smithy4s_codegen.api.SmithyCodeGenerationService
 import smithy4s_codegen.components.CodeEditor
@@ -14,12 +15,15 @@ object Home {
     val editor = new CodeEditor()
     val viewer = new CodeViewer()
 
+    locally {
+      implicit val owner = new ManualOwner
+      editor.codeContent.signal.foreach(PermalinkCodec.write)
+    }
+
     val validate: EventStream[CodeEditor.ValidationResult] =
       editor.codeContent.signal
         .composeChanges(_.debounce(2000))
         .flatMap { value =>
-          PermalinkCodec.write(value)
-
           api
             .smithyValidate(value)
             .map(_ => CodeEditor.ValidationResult.Success(value))
