@@ -42,9 +42,11 @@ class CodeEditor() {
       cls := "h-full",
       textArea(
         cls := "block p-2.5 w-full h-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 font-mono",
-        value <-- codeContent,
         onMountFocus,
-        onInput.mapToValue --> codeContent,
+        controlled(
+          value <-- codeContent,
+          onInput.mapToValue --> codeContent
+        ),
         PermalinkCodec.read --> codeContent
       )
     )
@@ -96,7 +98,7 @@ object PermalinkCodec {
 
   private def decode(hash: String): Option[String] = hash match {
     case s"#code=$content" =>
-      Some(lzstring.decompressFromEncodedURIComponent(content))
+      Option(lzstring.decompressFromEncodedURIComponent(content))
     case _ => None
   }
 }
