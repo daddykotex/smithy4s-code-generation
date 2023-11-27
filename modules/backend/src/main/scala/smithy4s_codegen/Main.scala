@@ -8,7 +8,6 @@ import com.comcast.ip4s._
 import org.http4s._
 import org.http4s.ember.server._
 import org.http4s.implicits._
-import smithy4s._
 import smithy4s.http4s.SimpleRestJsonBuilder
 import smithy4s_codegen.api._
 import smithy4s_codegen.generation._

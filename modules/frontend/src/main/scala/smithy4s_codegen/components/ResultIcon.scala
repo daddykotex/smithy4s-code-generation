@@ -1,7 +1,6 @@
 package smithy4s_codegen.components
 
 import com.raquo.laminar.api.L._
-import smithy4s_codegen.components.CodeEditor.ValidationResult
 
 object ResultIcon {
   sealed trait State

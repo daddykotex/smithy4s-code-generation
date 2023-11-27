@@ -39,7 +39,7 @@ lazy val frontend = (project in file("modules/frontend"))
      */
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom" % "2.4.0",
-      "com.raquo" %%% "laminar" % "15.0.0",
+      "com.raquo" %%% "laminar" % "16.0.0",
       "com.disneystreaming.smithy4s" %%% "smithy4s-http4s" % smithy4sVersion.value,
       "org.http4s" %%% "http4s-dom" % "0.2.3",
       "org.http4s" %%% "http4s-client" % "0.23.16"

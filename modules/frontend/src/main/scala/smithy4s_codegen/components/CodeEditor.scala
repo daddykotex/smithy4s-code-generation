@@ -3,6 +3,7 @@ package smithy4s_codegen.components
 import com.raquo.laminar.api.L._
 import smithy4s_codegen.api.Content
 import smithy4s_codegen.api.Path
+import smithy4s_codegen.bindings.lzstring
 
 object CodeEditor {
   sealed trait ValidationResult
@@ -30,16 +31,23 @@ class CodeEditor() {
                            |  @required
                            |  name: String
                            |}""".stripMargin
-  val codeContent = Var(initial)
+  val codeContent = Var(
+    PermalinkCodec
+      .readOnce()
+      .getOrElse(initial)
+  )
 
   val component =
     div(
       cls := "h-full",
       textArea(
         cls := "block p-2.5 w-full h-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 font-mono",
-        value := initial,
         onMountFocus,
-        onInput.mapToValue --> codeContent
+        controlled(
+          value <-- codeContent,
+          onInput.mapToValue --> codeContent
+        ),
+        PermalinkCodec.read --> codeContent
       )
     )
 
@@ -64,5 +72,33 @@ class CodeEditor() {
         ResultIcon.State.Failed
     })
     (icon, errors)
+  }
+
+}
+
+/** Writes code to the URL hash and provides a stream of its decoded values.
+  *
+  * Encoding/decoding of code is handled internally.
+  */
+object PermalinkCodec {
+
+  def readOnce(): Option[String] =
+    decode(org.scalajs.dom.window.location.hash)
+
+  val read: EventStream[String] = windowEvents(_.onHashChange)
+    .mapTo(org.scalajs.dom.window.location.hash)
+    .map(decode(_))
+    .collectSome
+
+  def write(code: String): Unit =
+    org.scalajs.dom.window.location.hash = encode(code)
+
+  private def encode(code: String): String =
+    s"#code=${lzstring.compressToEncodedURIComponent(code)}"
+
+  private def decode(hash: String): Option[String] = hash match {
+    case s"#code=$content" =>
+      Option(lzstring.decompressFromEncodedURIComponent(content))
+    case _ => None
   }
 }
