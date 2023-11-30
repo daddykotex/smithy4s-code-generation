@@ -10,6 +10,9 @@ kill_timeout = 5
 [build]
   image = "registry.fly.io/morning-bird-7081:latest"
 
+[env]
+  JAVA_OPTS = "-Xms192m -Xmx192m"
+
 [experimental]
   auto_rollback = true
 
