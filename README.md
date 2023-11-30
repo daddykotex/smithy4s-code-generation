@@ -8,6 +8,8 @@ Full stack Scala application with a Scalajs frontend. Depends on [Frontend](#fro
 
 Live at: https://morning-bird-7081.fly.dev/
 
+Deployed on a very small 2vcpu and 512mb vm.
+
 ### Frontend
 
 ScalaJS application shipped in [Backend](#backend).
