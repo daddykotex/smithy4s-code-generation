@@ -5,6 +5,10 @@ ThisBuild / organization := "com.example"
 ThisBuild / organizationName := "example"
 ThisBuild / scalaVersion := "2.13.10"
 
+val http4sVersion = "0.23.24"
+val smithyVersion = "1.41.1"
+val cirisVersion = "3.5.0"
+
 lazy val baseUri = settingKey[String](
   """Base URI of the backend, defaults to `""` (empty string)."""
 )
@@ -46,7 +50,7 @@ lazy val frontend = (project in file("modules/frontend"))
       "com.raquo" %%% "laminar" % "16.0.0",
       "com.disneystreaming.smithy4s" %%% "smithy4s-http4s" % smithy4sVersion.value,
       "org.http4s" %%% "http4s-dom" % "0.2.3",
-      "org.http4s" %%% "http4s-client" % "0.23.16"
+      "org.http4s" %%% "http4s-client" % http4sVersion
     ),
     baseUri := {
       if (bundleAssets.value) ""
@@ -71,8 +75,9 @@ lazy val backend = (project in file("modules/backend"))
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s-swagger" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
-      "software.amazon.smithy" % "smithy-model" % "1.30.0",
-      "org.http4s" %% "http4s-ember-server" % "0.23.16"
+      "is.cir" %% "ciris" % cirisVersion,
+      "software.amazon.smithy" % "smithy-model" % smithyVersion,
+      "org.http4s" %% "http4s-ember-server" % http4sVersion
     ),
     Compile / resourceGenerators += Def.task {
       val dir = frontend.base
