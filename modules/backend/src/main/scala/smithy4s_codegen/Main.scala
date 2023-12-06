@@ -18,15 +18,25 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import scala.concurrent.duration._
 
-class SmithyCodeGenerationServiceImpl(generator: Smithy4s, validator: Validate)
-    extends SmithyCodeGenerationService[IO] {
+class SmithyCodeGenerationServiceImpl(
+    deps: List[String],
+    generator: Smithy4s,
+    validator: Validate
+) extends SmithyCodeGenerationService[IO] {
+  private val defaultDeps = List.empty[String] // TODO
   def healthCheck(): IO[HealthCheckOutput] = IO.pure {
     HealthCheckOutput("ok")
   }
 
-  def smithy4sConvert(content: String): IO[Smithy4sConvertOutput] = {
+  def getConfiguration(): IO[GetConfigurationOutput] =
+    IO.pure(GetConfigurationOutput(deps.map(Dependency.apply)))
+
+  def smithy4sConvert(
+      content: String,
+      deps: Option[List[Dependency]]
+  ): IO[Smithy4sConvertOutput] = {
     generator
-      .generate(content)
+      .generate(deps.map(_.map(_.value)).getOrElse(defaultDeps), content)
       .leftMap(errors => InvalidSmithyContent(errors.map(_.getMessage)))
       .liftTo[IO]
       .map {
@@ -36,11 +46,16 @@ class SmithyCodeGenerationServiceImpl(generator: Smithy4s, validator: Validate)
       }
       .map(Smithy4sConvertOutput(_))
   }
-  def smithyValidate(content: String): IO[Unit] = {
-    validator.validateContent(content).flatMap {
-      case Right(value) => IO.unit
-      case Left(value)  => IO.raiseError(InvalidSmithyContent(value.toList))
-    }
+  def smithyValidate(
+      content: String,
+      deps: Option[List[Dependency]]
+  ): IO[Unit] = {
+    validator
+      .validateContent(deps.map(_.map(_.value)).getOrElse(defaultDeps), content)
+      .flatMap {
+        case Right(value) => IO.unit
+        case Left(value)  => IO.raiseError(InvalidSmithyContent(value.toList))
+      }
   }
 }
 
@@ -51,7 +66,13 @@ object Routes {
       .map(ml => (new Validate(ml), new Smithy4s(ml)))
       .flatMap { case (validator, generator) =>
         SimpleRestJsonBuilder
-          .routes(new SmithyCodeGenerationServiceImpl(generator, validator))
+          .routes(
+            new SmithyCodeGenerationServiceImpl(
+              config.smithyClasspathConfig.entries.keySet.toList,
+              generator,
+              validator
+            )
+          )
           .resource
       }
 
