@@ -7,6 +7,7 @@ ThisBuild / scalaVersion := "2.13.10"
 
 val http4sVersion = "0.23.24"
 val smithyVersion = "1.41.1"
+val circeVersion = "0.14.1"
 val cirisVersion = "3.5.0"
 
 lazy val baseUri = settingKey[String](
@@ -75,6 +76,9 @@ lazy val backend = (project in file("modules/backend"))
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s-swagger" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-codegen" % smithy4sVersion.value,
+      "io.circe" %% "circe-core" % circeVersion,
+      "io.circe" %% "circe-generic" % circeVersion,
+      "io.circe" %% "circe-parser" % circeVersion,
       "is.cir" %% "ciris" % cirisVersion,
       "software.amazon.smithy" % "smithy-model" % smithyVersion,
       "org.http4s" %% "http4s-ember-server" % http4sVersion

@@ -45,9 +45,9 @@ class SmithyCodeGenerationServiceImpl(generator: Smithy4s, validator: Validate)
 }
 
 object Routes {
-  def exampleRoute(localJars: List[File]): Resource[IO, HttpRoutes[IO]] =
+  def route(config: Config): Resource[IO, HttpRoutes[IO]] =
     Resource
-      .eval(ModelLoader(localJars))
+      .eval(ModelLoader(config.smithyClasspathConfig))
       .map(ml => (new Validate(ml), new Smithy4s(ml)))
       .flatMap { case (validator, generator) =>
         SimpleRestJsonBuilder
@@ -63,32 +63,9 @@ object Routes {
 }
 
 object Main extends IOApp.Simple {
-
-  val envSmithyClasspath: IO[List[File]] = Env[IO]
-    .get("APP_SMITHY_CLASSPATH")
-    .map(
-      _.map(_.trim().split(":").toList)
-        .getOrElse(List.empty)
-    )
-    .flatMap(files =>
-      files.traverse { fileLocation =>
-        val path = Paths.get(fileLocation)
-        IO.delay(Files.exists(path))
-          .ifM(
-            path.toFile.pure[IO],
-            IO.raiseError(
-              new IllegalArgumentException(
-                "APP_SMITHY_CLASSPATH contains bad values."
-              )
-            )
-          )
-
-      }
-    )
-
   val server = for {
-    smithyClasspath <- envSmithyClasspath.toResource
-    routes <- Routes.exampleRoute(smithyClasspath).map(Routes.fullRoutes)
+    config <- Config.makeConfig.toResource
+    routes <- Routes.route(config).map(Routes.fullRoutes)
     thePort = port"9000"
     theHost = host"0.0.0.0"
     res <-

@@ -8,7 +8,7 @@ final class Validate(modelLoader: ModelLoader) {
       content: String
   ): IO[Either[List[String], Unit]] = {
     modelLoader
-      .load(content)
+      .load(List.empty, content)
       .leftMap(_.map(_.getMessage()))
       .map(_ => ())
       .pure[IO]

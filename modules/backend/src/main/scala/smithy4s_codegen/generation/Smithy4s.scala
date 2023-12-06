@@ -11,7 +11,7 @@ final class Smithy4s(modelLoader: ModelLoader) {
       content: String
   ): Either[List[ValidationEvent], List[(os.RelPath, CodegenResult)]] = {
     modelLoader
-      .load(content)
+      .load(List.empty, content) // TODO fix
       .map(model => CodegenTrick.run(model, None, None))
   }
 }
