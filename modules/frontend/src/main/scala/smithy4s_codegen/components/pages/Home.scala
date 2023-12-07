@@ -2,17 +2,18 @@ package smithy4s_codegen.components.pages
 
 import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.laminar.api.L._
-import smithy4s_codegen.api.SmithyCodeGenerationService
+import smithy4s_codegen.api._
 import smithy4s_codegen.components.CodeEditor
 import smithy4s_codegen.components.CodeEditor.ValidationResult
 import smithy4s_codegen.components.CodeViewer
-
-import smithy4s_codegen.api.InvalidSmithyContent
 import smithy4s_codegen.components.PermalinkCodec
 
 object Home {
-  def apply(api: SmithyCodeGenerationService[EventStream]) = {
-    val editor = new CodeEditor()
+  def apply(
+      api: SmithyCodeGenerationService[EventStream],
+      config: EventStream[Either[Throwable, GetConfigurationOutput]]
+  ) = {
+    val editor = new CodeEditor(config.map(_.map(_.availableDependencies)))
     val viewer = new CodeViewer()
 
     locally {

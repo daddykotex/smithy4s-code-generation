@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L._
 import smithy4s_codegen.api.Content
 import smithy4s_codegen.api.Path
 import smithy4s_codegen.bindings.lzstring
+import smithy4s_codegen.api.Dependencies
 
 object CodeEditor {
   sealed trait ValidationResult
@@ -22,7 +23,7 @@ object CodeEditor {
     case class UnknownFailure(ex: Throwable) extends Smithy4sConversionResult
   }
 }
-class CodeEditor() {
+class CodeEditor(dependencies: EventStream[Either[Throwable, Dependencies]]) {
   private val initial = """|$version: "2"
                            |
                            |namespace input
@@ -37,17 +38,56 @@ class CodeEditor() {
       .getOrElse(initial)
   )
 
+  val dependenciesCheckboxes = {
+    def displayIfHasErrors = styleAttr <-- dependencies.map(res =>
+      if (res.isLeft) "display: block"
+      else "display: none"
+    )
+    val errors = div(
+      displayIfHasErrors,
+      child.text <-- dependencies.collect { case Left(ex) =>
+        "Unable to get available dependencies"
+      }
+    )
+    val depsList = div(
+      children <-- dependencies.collect { case Right(deps) =>
+        List(
+          fieldSet(
+            legend("Choose your dependencies"),
+            deps.value.map { dep =>
+              val depId = dep.value.replace(":", "_")
+              div(
+                input(
+                  cls := "m-2",
+                  `type` := "checkbox",
+                  nameAttr := depId,
+                  idAttr := depId
+                ),
+                label(forId := depId, dep.value)
+              )
+            }
+          )
+        )
+      }
+    )
+    div(errors, depsList)
+  }
+
   val component =
     div(
       cls := "h-full",
       textArea(
-        cls := "block p-2.5 w-full h-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 font-mono",
+        cls := "block p-2.5 w-full h-5/6 text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 font-mono",
         onMountFocus,
         controlled(
           value <-- codeContent,
           onInput.mapToValue --> codeContent
         ),
         PermalinkCodec.read --> codeContent
+      ),
+      div(
+        cls := "block p-2.5 w-full h-1/6",
+        dependenciesCheckboxes
       )
     )
 
