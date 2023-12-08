@@ -196,7 +196,11 @@ object PermalinkCodec {
       val deps =
         hashParts
           .collectFirst { case depsPart(value) =>
-            value.split(",").toSet.map(Dependency(_))
+            value
+              .split(",")
+              .filter(_.nonEmpty)
+              .toSet
+              .map(Dependency(_))
           }
           .getOrElse(Set.empty)
       maybeCode.map(code => EditorContent(code, deps))
