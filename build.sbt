@@ -99,8 +99,15 @@ lazy val backend = (project in file("modules/backend"))
       toCopy.map(_._2)
     },
     Docker / dockerExposedPorts := List(9000),
-    Docker / packageName := "morning-bird-7081",
-    Docker / dockerRepository := Some("registry.fly.io"),
+    Docker / packageName := "smithy4s-code-generation",
+    Docker / dockerRepository := Some("daddykotex"),
+    dockerAliases ++= Seq(
+      dockerAlias.value.withTag(sys.env.get("GITHUB_SHA")),
+      dockerAlias.value.withRegistryHost(Option("registry.fly.io")),
+      dockerAlias.value
+        .withTag(sys.env.get("GITHUB_SHA"))
+        .withRegistryHost(Option("registry.fly.io"))
+    ),
     Docker / version := "latest",
     dockerBaseImage := "eclipse-temurin:17.0.6_10-jre"
   )
