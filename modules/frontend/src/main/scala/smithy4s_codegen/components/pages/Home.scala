@@ -24,10 +24,13 @@ object Home {
     val validate: EventStream[CodeEditor.ValidationResult] =
       editor.codeContent.signal
         .composeChanges(_.debounce(2000))
-        .flatMap { value =>
+        .combineWith(editor.checkedDependencies.signal)
+        .flatMap { case (code, deps) =>
           api
-            .smithyValidate(value)
-            .map(_ => CodeEditor.ValidationResult.Success(value))
+            .smithyValidate(code, Some(deps.toList))
+            .map(_ =>
+              CodeEditor.ValidationResult.Success(code, Some(deps.toList))
+            )
             .recover {
               case InvalidSmithyContent(errors) =>
                 Some(CodeEditor.ValidationResult.Failed(errors))
@@ -38,12 +41,12 @@ object Home {
 
     val convertedToSmithy4s: EventStream[CodeEditor.Smithy4sConversionResult] =
       validate.compose {
-        _.collect { case ValidationResult.Success(content) =>
-          content
+        _.collect { case ValidationResult.Success(code, deps) =>
+          (code, deps)
         }
-          .flatMap { value =>
+          .flatMap { case (code, deps) =>
             api
-              .smithy4sConvert(value)
+              .smithy4sConvert(code, deps)
               .map(r =>
                 CodeEditor.Smithy4sConversionResult.Success(r.generated)
               )

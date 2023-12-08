@@ -5,12 +5,14 @@ import smithy4s_codegen.api.Content
 import smithy4s_codegen.api.Path
 import smithy4s_codegen.bindings.lzstring
 import smithy4s_codegen.api.Dependencies
+import smithy4s_codegen.api.Dependency
 
 object CodeEditor {
   sealed trait ValidationResult
   object ValidationResult {
     case object Loading extends ValidationResult
-    case class Success(content: String) extends ValidationResult
+    case class Success(content: String, deps: Option[List[Dependency]])
+        extends ValidationResult
     case class Failed(errors: List[String]) extends ValidationResult
     case class UnknownFailure(ex: Throwable) extends ValidationResult
   }
@@ -38,6 +40,8 @@ class CodeEditor(dependencies: EventStream[Either[Throwable, Dependencies]]) {
       .getOrElse(initial)
   )
 
+  val checkedDependencies = Var(Set.empty[Dependency])
+
   val dependenciesCheckboxes = {
     def displayIfHasErrors = styleAttr <-- dependencies.map(res =>
       if (res.isLeft) "display: block"
@@ -61,7 +65,13 @@ class CodeEditor(dependencies: EventStream[Either[Throwable, Dependencies]]) {
                   cls := "m-2",
                   `type` := "checkbox",
                   nameAttr := depId,
-                  idAttr := depId
+                  idAttr := depId,
+                  onChange.mapToChecked --> { x =>
+                    checkedDependencies.update { currentSet =>
+                      if (x) currentSet + dep
+                      else currentSet - dep
+                    }
+                  }
                 ),
                 label(forId := depId, dep.value)
               )
@@ -105,9 +115,9 @@ class CodeEditor(dependencies: EventStream[Either[Throwable, Dependencies]]) {
       }
     )
     val icon = ResultIcon(validationResult.map {
-      case CodeEditor.ValidationResult.Loading    => ResultIcon.State.Loading
-      case CodeEditor.ValidationResult.Success(_) => ResultIcon.State.Success
-      case CodeEditor.ValidationResult.Failed(_)  => ResultIcon.State.Failed
+      case CodeEditor.ValidationResult.Loading       => ResultIcon.State.Loading
+      case CodeEditor.ValidationResult.Success(_, _) => ResultIcon.State.Success
+      case CodeEditor.ValidationResult.Failed(_)     => ResultIcon.State.Failed
       case CodeEditor.ValidationResult.UnknownFailure(_) =>
         ResultIcon.State.Failed
     })
