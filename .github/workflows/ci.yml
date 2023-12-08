@@ -27,7 +27,7 @@ jobs:
           java-version: 17
           cache: sbt
 
-      - run: sbt test
+      - run: sbt "test; backend / Docker / publishLocal"
 
       - name: Compress target directories
         run: tar cf targets.tar target project/target
