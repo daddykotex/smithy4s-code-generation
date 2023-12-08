@@ -18,19 +18,16 @@ object Home {
 
     locally {
       implicit val owner = new ManualOwner
-      editor.codeContent.signal.foreach(PermalinkCodec.write)
+      editor.editorContent.signal.foreach(PermalinkCodec.write)
     }
 
     val validate: EventStream[CodeEditor.ValidationResult] =
-      editor.codeContent.signal
+      editor.editorContent.signal
         .composeChanges(_.debounce(2000))
-        .combineWith(editor.checkedDependencies.signal)
-        .flatMap { case (code, deps) =>
+        .flatMap { content =>
           api
-            .smithyValidate(code, Some(deps.toList))
-            .map(_ =>
-              CodeEditor.ValidationResult.Success(code, Some(deps.toList))
-            )
+            .smithyValidate(content.code, Some(content.deps.toList))
+            .map(_ => CodeEditor.ValidationResult.Success(content))
             .recover {
               case InvalidSmithyContent(errors) =>
                 Some(CodeEditor.ValidationResult.Failed(errors))
@@ -41,12 +38,10 @@ object Home {
 
     val convertedToSmithy4s: EventStream[CodeEditor.Smithy4sConversionResult] =
       validate.compose {
-        _.collect { case ValidationResult.Success(code, deps) =>
-          (code, deps)
-        }
-          .flatMap { case (code, deps) =>
+        _.collect { case ValidationResult.Success(content) => content }
+          .flatMap { content =>
             api
-              .smithy4sConvert(code, deps)
+              .smithy4sConvert(content.code, Some(content.deps.toList))
               .map(r =>
                 CodeEditor.Smithy4sConversionResult.Success(r.generated)
               )

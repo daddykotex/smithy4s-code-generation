@@ -11,8 +11,7 @@ object CodeEditor {
   sealed trait ValidationResult
   object ValidationResult {
     case object Loading extends ValidationResult
-    case class Success(content: String, deps: Option[List[Dependency]])
-        extends ValidationResult
+    case class Success(editorContent: EditorContent) extends ValidationResult
     case class Failed(errors: List[String]) extends ValidationResult
     case class UnknownFailure(ex: Throwable) extends ValidationResult
   }
@@ -34,13 +33,37 @@ class CodeEditor(dependencies: EventStream[Either[Throwable, Dependencies]]) {
                            |  @required
                            |  name: String
                            |}""".stripMargin
-  val codeContent = Var(
+  val editorContent = Var(
     PermalinkCodec
       .readOnce()
-      .getOrElse(initial)
+      .getOrElse(EditorContent(initial, Set.empty))
   )
 
-  val checkedDependencies = Var(Set.empty[Dependency])
+  val updatePermalinkCode = {
+    val v = onInput.mapToValue.map(value => editorContent.now().copy(value))
+    v --> editorContent
+  }
+
+  val updateValueFromPermalinkCode =
+    value <-- editorContent.signal.map(_.code)
+
+  def updatePermalinkDeps(dep: Dependency) = {
+    val mod = { (isChecked: Boolean) =>
+      editorContent.update { content =>
+        val newSet =
+          if (isChecked) content.deps + dep
+          else content.deps - dep
+        content.copy(deps = newSet)
+      }
+    }
+    onChange.mapToChecked --> mod
+  }
+
+  def updateCheckFromPermalinkDeps(dep: Dependency) = {
+    checked <-- editorContent.signal.map { content =>
+      content.deps.find(_ == dep).isDefined
+    }
+  }
 
   val dependenciesCheckboxes = {
     def displayIfHasErrors = styleAttr <-- dependencies.map(res =>
@@ -59,21 +82,16 @@ class CodeEditor(dependencies: EventStream[Either[Throwable, Dependencies]]) {
           fieldSet(
             legend("Choose your dependencies"),
             deps.value.map { dep =>
-              val depId = dep.value.replace(":", "_")
               div(
                 input(
                   cls := "m-2",
                   `type` := "checkbox",
-                  nameAttr := depId,
-                  idAttr := depId,
-                  onChange.mapToChecked --> { x =>
-                    checkedDependencies.update { currentSet =>
-                      if (x) currentSet + dep
-                      else currentSet - dep
-                    }
-                  }
+                  nameAttr := dep.value,
+                  idAttr := dep.value,
+                  updatePermalinkDeps(dep),
+                  updateCheckFromPermalinkDeps(dep)
                 ),
-                label(forId := depId, dep.value)
+                label(forId := dep.value, dep.value)
               )
             }
           )
@@ -90,10 +108,10 @@ class CodeEditor(dependencies: EventStream[Either[Throwable, Dependencies]]) {
         cls := "block p-2.5 w-full h-5/6 text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 font-mono",
         onMountFocus,
         controlled(
-          value <-- codeContent,
-          onInput.mapToValue --> codeContent
+          updateValueFromPermalinkCode,
+          updatePermalinkCode
         ),
-        PermalinkCodec.read --> codeContent
+        PermalinkCodec.read --> editorContent
       ),
       div(
         cls := "block p-2.5 w-full h-1/6",
@@ -115,9 +133,9 @@ class CodeEditor(dependencies: EventStream[Either[Throwable, Dependencies]]) {
       }
     )
     val icon = ResultIcon(validationResult.map {
-      case CodeEditor.ValidationResult.Loading       => ResultIcon.State.Loading
-      case CodeEditor.ValidationResult.Success(_, _) => ResultIcon.State.Success
-      case CodeEditor.ValidationResult.Failed(_)     => ResultIcon.State.Failed
+      case CodeEditor.ValidationResult.Loading    => ResultIcon.State.Loading
+      case CodeEditor.ValidationResult.Success(_) => ResultIcon.State.Success
+      case CodeEditor.ValidationResult.Failed(_)  => ResultIcon.State.Failed
       case CodeEditor.ValidationResult.UnknownFailure(_) =>
         ResultIcon.State.Failed
     })
@@ -126,29 +144,63 @@ class CodeEditor(dependencies: EventStream[Either[Throwable, Dependencies]]) {
 
 }
 
+final case class EditorContent(code: String, deps: Set[Dependency])
+
 /** Writes code to the URL hash and provides a stream of its decoded values.
   *
   * Encoding/decoding of code is handled internally.
   */
 object PermalinkCodec {
+  val hashTag = "#"
+  val hashTagLength = hashTag.length()
+  val hashPart = ";"
 
-  def readOnce(): Option[String] =
+  def readOnce(): Option[EditorContent] =
     decode(org.scalajs.dom.window.location.hash)
 
-  val read: EventStream[String] = windowEvents(_.onHashChange)
+  val read: EventStream[EditorContent] = windowEvents(_.onHashChange)
     .mapTo(org.scalajs.dom.window.location.hash)
     .map(decode(_))
     .collectSome
 
-  def write(code: String): Unit =
-    org.scalajs.dom.window.location.hash = encode(code)
+  def write(value: EditorContent): Unit =
+    org.scalajs.dom.window.location.hash = encode(value)
 
-  private def encode(code: String): String =
-    s"#code=${lzstring.compressToEncodedURIComponent(code)}"
+  private class HashPartValue(partName: String) {
+    private val partKey = s"$partName="
+    def encode(value: String): String = s"$partKey$value"
+    def unapply(value: String): Option[String] = {
+      if (value.startsWith(partKey)) Some(value.drop(partKey.length()))
+      else None
+    }
+  }
+  private val codePart = new HashPartValue("code")
+  private val depsPart = new HashPartValue("dependencies")
 
-  private def decode(hash: String): Option[String] = hash match {
-    case s"#code=$content" =>
-      Option(lzstring.decompressFromEncodedURIComponent(content))
-    case _ => None
+  private def encode(value: EditorContent): String = {
+    val code =
+      codePart.encode(lzstring.compressToEncodedURIComponent(value.code))
+    val deps = depsPart.encode(value.deps.map(_.value).mkString(","))
+    val hash = List(code, deps).mkString(";")
+    s"#$hash"
+  }
+
+  private def decode(hash: String): Option[EditorContent] = {
+    if (hash.startsWith(hashTag)) {
+      val hashParts = hash
+        .drop(hashTagLength)
+        .split(hashPart)
+
+      val maybeCode = hashParts.collectFirst { case codePart(value) =>
+        Option(lzstring.decompressFromEncodedURIComponent(value))
+      }.flatten
+      val deps =
+        hashParts
+          .collectFirst { case depsPart(value) =>
+            value.split(",").toSet.map(Dependency(_))
+          }
+          .getOrElse(Set.empty)
+      maybeCode.map(code => EditorContent(code, deps))
+    } else None
   }
 }
