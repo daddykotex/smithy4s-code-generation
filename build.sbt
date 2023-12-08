@@ -103,9 +103,12 @@ lazy val backend = (project in file("modules/backend"))
     Docker / dockerRepository := Some("daddykotex"),
     dockerAliases ++= Seq(
       dockerAlias.value.withTag(sys.env.get("GITHUB_SHA")),
-      dockerAlias.value.withRegistryHost(Option("registry.fly.io")),
+      dockerAlias.value
+        .withName("morning-bird-7081")
+        .withRegistryHost(Option("registry.fly.io")),
       dockerAlias.value
         .withTag(sys.env.get("GITHUB_SHA"))
+        .withName("morning-bird-7081")
         .withRegistryHost(Option("registry.fly.io"))
     ),
     Docker / version := "latest",
