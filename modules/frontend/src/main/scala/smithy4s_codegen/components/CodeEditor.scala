@@ -110,8 +110,7 @@ class CodeEditor(dependencies: EventStream[Either[Throwable, Dependencies]]) {
         controlled(
           updateValueFromPermalinkCode,
           updatePermalinkCode
-        ),
-        PermalinkCodec.read --> editorContent
+        )
       ),
       div(
         cls := "block p-2.5 w-full h-1/6",
