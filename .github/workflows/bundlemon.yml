@@ -23,7 +23,10 @@ jobs:
           java-version: 17
           cache: sbt
 
-      - run: sbt "frontend/buildFrontend"
+      - run: |
+          npm install
+          npm run build
+        working-directory: ./modules/frontend
 
       - name: Run BundleMon
         working-directory: ./modules/frontend
