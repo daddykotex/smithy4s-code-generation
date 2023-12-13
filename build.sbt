@@ -5,12 +5,16 @@ ThisBuild / organization := "com.example"
 ThisBuild / organizationName := "example"
 ThisBuild / scalaVersion := "2.13.10"
 
-lazy val buildFrontend = taskKey[Seq[(File, String)]](
-  "Build the frontend, for production, and return all files generated."
-)
 lazy val baseUri = settingKey[String](
   """Base URI of the backend, defaults to `""` (empty string)."""
 )
+lazy val bundleAssets = settingKey[Boolean](
+  """Whether or not assets should be bundled in the backend jar"""
+)
+ThisBuild / bundleAssets := sys.env
+  .get("BUNDLE_ASSETS")
+  .map(_.toBoolean)
+  .getOrElse(false)
 
 lazy val root = (project in file("."))
   .aggregate(api, frontend, backend)
@@ -45,34 +49,12 @@ lazy val frontend = (project in file("modules/frontend"))
       "org.http4s" %%% "http4s-client" % "0.23.16"
     ),
     baseUri := {
-      if (insideCI.value) ""
-      else
-        // Vite will proxy this to the backend. See vite.config.js
-        "/api"
+      if (bundleAssets.value) ""
+      // Vite will proxy this to the backend. See vite.config.js
+      else "/api"
     },
     buildInfoKeys := Seq[BuildInfoKey](baseUri),
-    buildInfoPackage := "smithy4s_codegen",
-    buildFrontend := {
-      import sys.process._
-
-      val npmi = Seq("npm", "i")
-      val npmBuild = Seq("npm", "run", "build")
-
-      val dir = baseDirectory.value
-      val logger = sLog.value
-
-      def runIn(dir: File)(cmd: Seq[String]): Int = {
-        Process(cmd, cwd = Some(dir)).!(logger)
-      }
-      require(runIn(dir)(npmi) == 0, s"[${npmi.mkString(" ")}] failed.")
-      require(runIn(dir)(npmBuild) == 0, s"[${npmi.mkString(" ")}] failed.")
-
-      val distDir = dir / "dist"
-      for {
-        f <- (distDir ** "*").get
-        relative <- f.relativeTo(dir)
-      } yield f -> s"$relative"
-    }
+    buildInfoPackage := "smithy4s_codegen"
   )
 
 lazy val backend = (project in file("modules/backend"))
@@ -84,6 +66,7 @@ lazy val backend = (project in file("modules/backend"))
   )
   .settings(
     name := "smithy4s-code-generation-backend",
+    fork := true,
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s-swagger" % smithy4sVersion.value,
@@ -92,11 +75,24 @@ lazy val backend = (project in file("modules/backend"))
       "org.http4s" %% "http4s-ember-server" % "0.23.16"
     ),
     Compile / resourceGenerators += Def.task {
-      val generated = (frontend / buildFrontend).value
-      val target = (Compile / resourceManaged).value
-      val toCopy = generated.map { case (f, relPath) => f -> target / relPath }
-      IO.copy(toCopy)
-      toCopy.map(_._2)
+      val dir = frontend.base
+      val distDir = dir / "dist"
+
+      if (bundleAssets.value) {
+        require(distDir.exists(), s"asset directory unavailable: $distDir")
+        val generated = for {
+          f <- (distDir ** "*").get
+          relative <- f.relativeTo(dir)
+        } yield f -> s"$relative"
+        val target = (Compile / resourceManaged).value
+        val toCopy = generated.map { case (f, relPath) =>
+          f -> target / relPath
+        }
+        IO.copy(toCopy)
+        toCopy.map(_._2)
+      } else {
+        Seq.empty
+      }
     },
     Docker / dockerExposedPorts := List(9000),
     Docker / packageName := "smithy4s-code-generation",

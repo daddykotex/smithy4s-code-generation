@@ -47,3 +47,6 @@ metals.sbt
 
 # VS-Code
 .vscode/
+
+# smithy-lsp
+build/smithy/
