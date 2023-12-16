@@ -186,6 +186,8 @@ lazy val backendDependencies = project
       )
       entriesMapping ++ configMapping
     },
+    Docker / packageName := "smithy4s-code-generation",
+    Docker / dockerRepository := Some("daddykotex"),
     dockerAliases := {
       val beAlias = (backend / dockerAlias).value
       val sha = sys.env.get("GITHUB_SHA").map(_.take(10))
