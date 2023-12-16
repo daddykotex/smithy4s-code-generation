@@ -1,4 +1,13 @@
-# Generate Smithy4s code on the fly
+# Generate Smithy4s code on the fly <!-- omit in toc -->
+
+- [Modules](#modules)
+  - [Backend](#backend)
+    - [Configuration](#configuration)
+  - [Frontend](#frontend)
+  - [Developement](#developement)
+- [Dockerhub](#dockerhub)
+- [Fly.io](#flyio)
+
 
 ## Modules
 
@@ -9,6 +18,12 @@ Full stack Scala application with a Scalajs frontend. Depends on [Frontend](#fro
 Live at: https://morning-bird-7081.fly.dev/
 
 Deployed on a very small 2vcpu and 512mb vm.
+
+#### Configuration
+
+The backend can be configured.
+
+1. `SMITHY_CLASSPATH_CONFIG`: location of a json file used to load dependencies to include during code gen
 
 ### Frontend
 
