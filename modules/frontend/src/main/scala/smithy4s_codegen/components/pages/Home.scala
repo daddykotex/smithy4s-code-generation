@@ -2,31 +2,32 @@ package smithy4s_codegen.components.pages
 
 import com.raquo.airstream.ownership.ManualOwner
 import com.raquo.laminar.api.L._
-import smithy4s_codegen.api.SmithyCodeGenerationService
+import smithy4s_codegen.api._
 import smithy4s_codegen.components.CodeEditor
 import smithy4s_codegen.components.CodeEditor.ValidationResult
 import smithy4s_codegen.components.CodeViewer
-
-import smithy4s_codegen.api.InvalidSmithyContent
 import smithy4s_codegen.components.PermalinkCodec
 
 object Home {
-  def apply(api: SmithyCodeGenerationService[EventStream]) = {
-    val editor = new CodeEditor()
+  def apply(
+      api: SmithyCodeGenerationService[EventStream],
+      config: EventStream[Either[Throwable, GetConfigurationOutput]]
+  ) = {
+    val editor = new CodeEditor(config.map(_.map(_.availableDependencies)))
     val viewer = new CodeViewer()
 
     locally {
       implicit val owner = new ManualOwner
-      editor.codeContent.signal.foreach(PermalinkCodec.write)
+      editor.editorContent.signal.foreach(PermalinkCodec.write)
     }
 
     val validate: EventStream[CodeEditor.ValidationResult] =
-      editor.codeContent.signal
+      editor.editorContent.signal
         .composeChanges(_.debounce(2000))
-        .flatMap { value =>
+        .flatMap { content =>
           api
-            .smithyValidate(value)
-            .map(_ => CodeEditor.ValidationResult.Success(value))
+            .smithyValidate(content.code, Some(content.deps.toList))
+            .map(_ => CodeEditor.ValidationResult.Success(content))
             .recover {
               case InvalidSmithyContent(errors) =>
                 Some(CodeEditor.ValidationResult.Failed(errors))
@@ -37,12 +38,10 @@ object Home {
 
     val convertedToSmithy4s: EventStream[CodeEditor.Smithy4sConversionResult] =
       validate.compose {
-        _.collect { case ValidationResult.Success(content) =>
-          content
-        }
-          .flatMap { value =>
+        _.collect { case ValidationResult.Success(content) => content }
+          .flatMap { content =>
             api
-              .smithy4sConvert(value)
+              .smithy4sConvert(content.code, Some(content.deps.toList))
               .map(r =>
                 CodeEditor.Smithy4sConversionResult.Success(r.generated)
               )

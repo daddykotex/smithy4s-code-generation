@@ -15,7 +15,8 @@ object Main extends IOApp.Simple {
 
   private def setup(api: SmithyCodeGenerationService[EventStream]) = IO.delay {
     lazy val appContainer = dom.document.querySelector("#app") // must be lazy
-    val appElement = Home(api)
+    val appElement =
+      Home(api, api.getConfiguration().recoverToTry.map(_.toEither))
     render(appContainer, appElement)
   }
   val run = ApiBuilder.build.flatMap(setup(_).toResource).useForever

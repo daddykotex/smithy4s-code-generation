@@ -18,15 +18,25 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import scala.concurrent.duration._
 
-class SmithyCodeGenerationServiceImpl(generator: Smithy4s, validator: Validate)
-    extends SmithyCodeGenerationService[IO] {
+class SmithyCodeGenerationServiceImpl(
+    deps: List[String],
+    generator: Smithy4s,
+    validator: Validate
+) extends SmithyCodeGenerationService[IO] {
+  private val defaultDeps = List.empty[String] // TODO
   def healthCheck(): IO[HealthCheckOutput] = IO.pure {
     HealthCheckOutput("ok")
   }
 
-  def smithy4sConvert(content: String): IO[Smithy4sConvertOutput] = {
+  def getConfiguration(): IO[GetConfigurationOutput] =
+    IO.pure(GetConfigurationOutput(deps.map(Dependency.apply)))
+
+  def smithy4sConvert(
+      content: String,
+      deps: Option[List[Dependency]]
+  ): IO[Smithy4sConvertOutput] = {
     generator
-      .generate(content)
+      .generate(deps.map(_.map(_.value)).getOrElse(defaultDeps), content)
       .leftMap(errors => InvalidSmithyContent(errors.map(_.getMessage)))
       .liftTo[IO]
       .map {
@@ -36,22 +46,33 @@ class SmithyCodeGenerationServiceImpl(generator: Smithy4s, validator: Validate)
       }
       .map(Smithy4sConvertOutput(_))
   }
-  def smithyValidate(content: String): IO[Unit] = {
-    validator.validateContent(content).flatMap {
-      case Right(value) => IO.unit
-      case Left(value)  => IO.raiseError(InvalidSmithyContent(value.toList))
-    }
+  def smithyValidate(
+      content: String,
+      deps: Option[List[Dependency]]
+  ): IO[Unit] = {
+    validator
+      .validateContent(deps.map(_.map(_.value)).getOrElse(defaultDeps), content)
+      .flatMap {
+        case Right(value) => IO.unit
+        case Left(value)  => IO.raiseError(InvalidSmithyContent(value.toList))
+      }
   }
 }
 
 object Routes {
-  def exampleRoute(localJars: List[File]): Resource[IO, HttpRoutes[IO]] =
+  def route(config: Config): Resource[IO, HttpRoutes[IO]] =
     Resource
-      .eval(ModelLoader(localJars))
+      .eval(ModelLoader(config.smithyClasspathConfig))
       .map(ml => (new Validate(ml), new Smithy4s(ml)))
       .flatMap { case (validator, generator) =>
         SimpleRestJsonBuilder
-          .routes(new SmithyCodeGenerationServiceImpl(generator, validator))
+          .routes(
+            new SmithyCodeGenerationServiceImpl(
+              config.smithyClasspathConfig.entries.keySet.toList,
+              generator,
+              validator
+            )
+          )
           .resource
       }
 
@@ -63,32 +84,9 @@ object Routes {
 }
 
 object Main extends IOApp.Simple {
-
-  val envSmithyClasspath: IO[List[File]] = Env[IO]
-    .get("APP_SMITHY_CLASSPATH")
-    .map(
-      _.map(_.trim().split(":").toList)
-        .getOrElse(List.empty)
-    )
-    .flatMap(files =>
-      files.traverse { fileLocation =>
-        val path = Paths.get(fileLocation)
-        IO.delay(Files.exists(path))
-          .ifM(
-            path.toFile.pure[IO],
-            IO.raiseError(
-              new IllegalArgumentException(
-                "APP_SMITHY_CLASSPATH contains bad values."
-              )
-            )
-          )
-
-      }
-    )
-
   val server = for {
-    smithyClasspath <- envSmithyClasspath.toResource
-    routes <- Routes.exampleRoute(smithyClasspath).map(Routes.fullRoutes)
+    config <- Config.makeConfig.toResource
+    routes <- Routes.route(config).map(Routes.fullRoutes)
     thePort = port"9000"
     theHost = host"0.0.0.0"
     res <-

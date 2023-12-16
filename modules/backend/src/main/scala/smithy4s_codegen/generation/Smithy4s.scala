@@ -8,10 +8,11 @@ case class CodegenResult(namespace: String, name: String, content: String)
 
 final class Smithy4s(modelLoader: ModelLoader) {
   def generate(
+      dependencies: List[String],
       content: String
   ): Either[List[ValidationEvent], List[(os.RelPath, CodegenResult)]] = {
     modelLoader
-      .load(content)
+      .load(dependencies, content)
       .map(model => CodegenTrick.run(model, None, None))
   }
 }

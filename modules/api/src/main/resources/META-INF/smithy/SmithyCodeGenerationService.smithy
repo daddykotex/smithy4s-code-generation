@@ -9,16 +9,27 @@ service SmithyCodeGenerationService {
     version: "1.0.0"
     operations: [
         HealthCheck
+        GetConfiguration
         SmithyValidate
         Smithy4sConvert
     ]
 }
 
 @http(method: "GET", uri: "/health", code: 200)
+@readonly
 operation HealthCheck {
     output := {
         @required
         message: String
+    }
+}
+
+@http(method: "GET", uri: "/configuration", code: 200)
+@readonly
+operation GetConfiguration {
+    output := {
+        @required
+        availableDependencies: Dependencies
     }
 }
 
@@ -27,6 +38,8 @@ operation SmithyValidate {
     input := {
         @required
         content: String
+        @documentation("If omitted, use the server's default.")
+        deps: Dependencies
     }
     errors: [InvalidSmithyContent]
 }
@@ -47,6 +60,8 @@ operation Smithy4sConvert {
     input := {
         @required
         content: String
+        @documentation("If omitted, use the server's default.")
+        deps: Dependencies
     }
     output := {
         @required
@@ -62,4 +77,10 @@ string Content
 map Smithy4sGeneratedContent {
     key: Path
     value: Content
+}
+
+string Dependency
+
+list Dependencies {
+    member: Dependency
 }
