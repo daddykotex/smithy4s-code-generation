@@ -8,7 +8,7 @@ primary_region = "yul"
 kill_signal = "SIGINT"
 kill_timeout = 5
 [build]
-  image = "registry.fly.io/morning-bird-7081:latest"
+  image = "registry.fly.io/morning-bird-7081:with-dependencies"
 
 [env]
   JAVA_OPTS = "-Xms384m -Xmx384m"
