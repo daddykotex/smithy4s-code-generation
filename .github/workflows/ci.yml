@@ -27,7 +27,11 @@ jobs:
           java-version: 17
           cache: sbt
 
-      - run: sbt "test; backend / Docker / publishLocal"
+      - run: sbt "test"
+
+      - run: ./scripts/build-image.sh
+        env:
+          PUBLISH_OFFICIAL: "false"
 
       - name: Compress target directories
         run: tar cf targets.tar target project/target
@@ -71,6 +75,8 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_TOKEN }}
       - run: ./scripts/build-image.sh
+        env:
+          PUBLISH_OFFICIAL: "true"
       - run: flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_TOKEN }}

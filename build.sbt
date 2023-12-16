@@ -1,4 +1,6 @@
 import org.scalajs.linker.interface.ModuleSplitStyle
+import com.typesafe.sbt.packager.docker._
+import smithy4s_codegen._
 
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / organization := "com.example"
@@ -13,6 +15,7 @@ val cirisVersion = "3.5.0"
 lazy val baseUri = settingKey[String](
   """Base URI of the backend, defaults to `""` (empty string)."""
 )
+
 lazy val bundleAssets = settingKey[Boolean](
   """Whether or not assets should be bundled in the backend jar"""
 )
@@ -21,8 +24,15 @@ ThisBuild / bundleAssets := sys.env
   .map(_.toBoolean)
   .getOrElse(false)
 
+lazy val smithyClasspath = settingKey[Seq[ModuleID]](
+  """List of artifacts to include in backend image that has dependencies"""
+)
+lazy val smithyClasspathDir = settingKey[String](
+  """Path of the smithy classpath directory (where we mount the config and the jars)"""
+)
+
 lazy val root = (project in file("."))
-  .aggregate(api, frontend, backend)
+  .aggregate(api, frontend, backend, backendDependencies)
 
 lazy val api = (project in file("modules/api"))
 
@@ -106,16 +116,99 @@ lazy val backend = (project in file("modules/backend"))
     Docker / dockerExposedPorts := List(9000),
     Docker / packageName := "smithy4s-code-generation",
     Docker / dockerRepository := Some("daddykotex"),
-    dockerAliases ++= Seq(
-      dockerAlias.value.withTag(sys.env.get("GITHUB_SHA")),
-      dockerAlias.value
-        .withName("morning-bird-7081")
-        .withRegistryHost(Option("registry.fly.io")),
-      dockerAlias.value
-        .withTag(sys.env.get("GITHUB_SHA"))
-        .withName("morning-bird-7081")
-        .withRegistryHost(Option("registry.fly.io"))
-    ),
+    dockerAliases ++= {
+      val sha = sys.env.get("GITHUB_SHA").map(_.take(10))
+      val latests = Seq(
+        dockerAlias.value
+          .withName("morning-bird-7081")
+          .withRegistryHost(Option("registry.fly.io"))
+      )
+      val shas = sha.toSeq.flatMap { s =>
+        Seq(
+          dockerAlias.value.withTag(Some(s)),
+          dockerAlias.value
+            .withTag(Some(s))
+            .withName("morning-bird-7081")
+            .withRegistryHost(Option("registry.fly.io"))
+        )
+      }
+
+      latests ++ shas
+    },
     Docker / version := "latest",
     dockerBaseImage := "eclipse-temurin:17.0.6_10-jre"
+  )
+
+/** This is a project that's only intented to be a copy of backend but that
+  * builds in an image with some dependencies for the smithy-classpath.
+  */
+lazy val backendDependencies = project
+  .enablePlugins(DockerPlugin)
+  .settings(
+    smithyClasspath := Seq(
+      "com.disneystreaming.alloy" % "alloy-core" % "0.2.8"
+    ),
+    Universal / mappings := {
+      val depRes = dependencyResolution.value
+      val artifacts = smithyClasspath.value
+      val smithyClasspathOutput = target.value / "smithy-classpath"
+      val logger = sLog.value
+      val resolved = artifacts.flatMap { module =>
+        depRes.retrieve(module, None, target.value, logger) match {
+          case Left(value) =>
+            sys.error(s"Unable to resolve smithy classpath module $module")
+          case Right(value) => value.headOption.map(f => module -> f)
+        }
+      }
+      val smithyClasspathValue = smithyClasspathDir.value
+
+      val entries: Seq[SmithyClasspathEntry] =
+        resolved.map { case (module, file) =>
+          SmithyClasspathEntry(
+            module,
+            file,
+            s"$smithyClasspathValue/${file.name}"
+          )
+        }
+      val entriesMapping =
+        entries.map { case SmithyClasspathEntry(_, file, pathInImage) =>
+          file -> pathInImage
+        }
+
+      val smithyClasspathFile = target.value / "smithy-classpath.json"
+      SmithyClasspath.toFile(
+        smithyClasspathFile,
+        entries,
+        (Docker / defaultLinuxInstallLocation).value
+      )
+      val configMapping = Seq(
+        smithyClasspathFile -> s"$smithyClasspathValue/smithy-classpath.json"
+      )
+      entriesMapping ++ configMapping
+    },
+    dockerAliases := {
+      val beAlias = (backend / dockerAlias).value
+      val sha = sys.env.get("GITHUB_SHA").map(_.take(10))
+      val tags =
+        sha.map(s => s"with-dependencies-$s").toSeq ++ Seq("with-dependencies")
+      tags.flatMap { t =>
+        Seq(
+          dockerAlias.value.withTag(Some(t)),
+          dockerAlias.value
+            .withTag(Some(t))
+            .withName("morning-bird-7081")
+            .withRegistryHost(Option("registry.fly.io"))
+        )
+      }
+    },
+    dockerEntrypoint := (backend / dockerEntrypoint).value,
+    dockerBaseImage := (backend / dockerAlias).value.toString,
+    smithyClasspathDir := "smithy-classpath",
+    dockerEnvVars ++= {
+      val inDockerPath = (Docker / defaultLinuxInstallLocation).value
+      val smithyClasspathValue = smithyClasspathDir.value
+      Map(
+        "SMITHY_CLASSPATH_CONFIG" -> s"$inDockerPath/$smithyClasspathValue/smithy-classpath.json"
+      )
+    }
   )
