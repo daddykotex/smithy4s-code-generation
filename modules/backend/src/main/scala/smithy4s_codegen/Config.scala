@@ -13,6 +13,9 @@ final class InvalidConfiguration(message: String)
 final case class SmithyClasspathConfig(
     entries: Map[String, FPath]
 )
+object SmithyClasspathConfig {
+  val Empty: SmithyClasspathConfig = SmithyClasspathConfig(Map.empty)
+}
 
 private final case class JsonSmithyClasspathConfig(
     entries: Map[String, String]
@@ -56,17 +59,15 @@ object Config {
             asFPath(jar).tupleLeft(dep)
           }
           .map(_.toMap)
-          .map(SmithyClasspathConfig)
+          .map(SmithyClasspathConfig.apply)
       }
   }
 
-  val smithyClasspathConfigFile =
+  val smithyClasspathConfig =
     env("SMITHY_CLASSPATH_CONFIG")
-      .default("./smithy-classpath.json")
-      .evalMap { asFPath }
-
-  val smithyClasspathConfig = smithyClasspathConfigFile
-    .evalMap { loadSmithyClasspathConfig }
+      .evalMap { p => asFPath(p).flatMap(loadSmithyClasspathConfig) }
+      .option
+      .map(_.getOrElse(SmithyClasspathConfig.Empty))
 
   val config = smithyClasspathConfig.map(Config.apply)
 
