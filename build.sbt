@@ -72,6 +72,54 @@ lazy val frontend = (project in file("modules/frontend"))
     buildInfoPackage := "smithy4s_codegen"
   )
 
+lazy val smithyClasspathSettings = Def.settings(
+  Universal / mappings ++= {
+    val depRes = dependencyResolution.value
+    val artifacts = smithyClasspath.value
+    val smithyClasspathOutput = target.value / "smithy-classpath"
+    val logger = sLog.value
+    val resolved = artifacts.flatMap { module =>
+      depRes.retrieve(module, None, target.value, logger) match {
+        case Left(value) =>
+          sys.error(s"Unable to resolve smithy classpath module $module")
+        case Right(value) => value.headOption.map(f => module -> f)
+      }
+    }
+    val smithyClasspathValue = smithyClasspathDir.value
+
+    val entries: Seq[SmithyClasspathEntry] =
+      resolved.map { case (module, file) =>
+        SmithyClasspathEntry(
+          module,
+          file,
+          s"$smithyClasspathValue/${file.name}"
+        )
+      }
+    val entriesMapping =
+      entries.map { case SmithyClasspathEntry(_, file, pathInImage) =>
+        file -> pathInImage
+      }
+
+    val smithyClasspathFile = target.value / "smithy-classpath.json"
+    SmithyClasspath.toFile(
+      smithyClasspathFile,
+      entries,
+      (Docker / defaultLinuxInstallLocation).value
+    )
+    val configMapping = Seq(
+      smithyClasspathFile -> s"$smithyClasspathValue/smithy-classpath.json"
+    )
+    entriesMapping ++ configMapping
+  },
+  dockerEnvVars ++= {
+    val inDockerPath = (Docker / defaultLinuxInstallLocation).value
+    val smithyClasspathValue = smithyClasspathDir.value
+    Map(
+      "SMITHY_CLASSPATH_CONFIG" -> s"$inDockerPath/$smithyClasspathValue/smithy-classpath.json"
+    )
+  }
+)
+
 lazy val backend = (project in file("modules/backend"))
   .dependsOn(api)
   .enablePlugins(
@@ -79,6 +127,7 @@ lazy val backend = (project in file("modules/backend"))
     JavaAppPackaging,
     DockerPlugin
   )
+  .settings(smithyClasspathSettings)
   .settings(
     name := "smithy4s-code-generation-backend",
     fork := true,
@@ -93,6 +142,8 @@ lazy val backend = (project in file("modules/backend"))
       "software.amazon.smithy" % "smithy-model" % smithyVersion,
       "org.http4s" %% "http4s-ember-server" % http4sVersion
     ),
+    smithyClasspath := Seq.empty,
+    smithyClasspathDir := "smithy-classpath",
     Compile / resourceGenerators += Def.task {
       val dir = frontend.base
       val distDir = dir / "dist"
@@ -144,48 +195,12 @@ lazy val backend = (project in file("modules/backend"))
   */
 lazy val backendDependencies = project
   .enablePlugins(DockerPlugin)
+  .settings(smithyClasspathSettings)
   .settings(
     smithyClasspath := Seq(
       "com.disneystreaming.alloy" % "alloy-core" % "0.2.8"
     ),
-    Universal / mappings := {
-      val depRes = dependencyResolution.value
-      val artifacts = smithyClasspath.value
-      val smithyClasspathOutput = target.value / "smithy-classpath"
-      val logger = sLog.value
-      val resolved = artifacts.flatMap { module =>
-        depRes.retrieve(module, None, target.value, logger) match {
-          case Left(value) =>
-            sys.error(s"Unable to resolve smithy classpath module $module")
-          case Right(value) => value.headOption.map(f => module -> f)
-        }
-      }
-      val smithyClasspathValue = smithyClasspathDir.value
-
-      val entries: Seq[SmithyClasspathEntry] =
-        resolved.map { case (module, file) =>
-          SmithyClasspathEntry(
-            module,
-            file,
-            s"$smithyClasspathValue/${file.name}"
-          )
-        }
-      val entriesMapping =
-        entries.map { case SmithyClasspathEntry(_, file, pathInImage) =>
-          file -> pathInImage
-        }
-
-      val smithyClasspathFile = target.value / "smithy-classpath.json"
-      SmithyClasspath.toFile(
-        smithyClasspathFile,
-        entries,
-        (Docker / defaultLinuxInstallLocation).value
-      )
-      val configMapping = Seq(
-        smithyClasspathFile -> s"$smithyClasspathValue/smithy-classpath.json"
-      )
-      entriesMapping ++ configMapping
-    },
+    smithyClasspathDir := "smithy-classpath",
     Docker / packageName := "smithy4s-code-generation",
     Docker / dockerRepository := Some("daddykotex"),
     dockerAliases := {
@@ -204,13 +219,5 @@ lazy val backendDependencies = project
       }
     },
     dockerEntrypoint := (backend / dockerEntrypoint).value,
-    dockerBaseImage := (backend / dockerAlias).value.toString,
-    smithyClasspathDir := "smithy-classpath",
-    dockerEnvVars ++= {
-      val inDockerPath = (Docker / defaultLinuxInstallLocation).value
-      val smithyClasspathValue = smithyClasspathDir.value
-      Map(
-        "SMITHY_CLASSPATH_CONFIG" -> s"$inDockerPath/$smithyClasspathValue/smithy-classpath.json"
-      )
-    }
+    dockerBaseImage := (backend / dockerAlias).value.toString
   )
