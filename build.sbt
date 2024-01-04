@@ -198,7 +198,8 @@ lazy val backendDependencies = project
   .settings(smithyClasspathSettings)
   .settings(
     smithyClasspath := Seq(
-      "com.disneystreaming.alloy" % "alloy-core" % "0.2.8"
+      "com.disneystreaming.alloy" % "alloy-core" % "0.2.8",
+      "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value
     ),
     smithyClasspathDir := "smithy-classpath",
     Docker / packageName := "smithy4s-code-generation",
