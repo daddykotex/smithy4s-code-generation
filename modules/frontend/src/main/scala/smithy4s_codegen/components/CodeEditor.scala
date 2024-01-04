@@ -91,7 +91,7 @@ class CodeEditor(dependencies: EventStream[Either[Throwable, Dependencies]]) {
                   updatePermalinkDeps(dep),
                   updateCheckFromPermalinkDeps(dep)
                 ),
-                label(forId := dep.value, dep.value)
+                label(forId := dep.value, dep.value, cls := "font-mono")
               )
             }
           )

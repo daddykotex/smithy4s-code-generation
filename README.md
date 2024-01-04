@@ -23,7 +23,7 @@ Deployed on a very small 2vcpu and 512mb vm.
 
 The backend can be configured.
 
-1. `SMITHY_CLASSPATH_CONFIG`: location of a json file used to load dependencies to include during code gen. The file looks content looks like this:
+1. `SMITHY_CLASSPATH_CONFIG`: location of a json file used to load dependencies to include during code gen. The file content looks like this:
 
 ```json
 {
