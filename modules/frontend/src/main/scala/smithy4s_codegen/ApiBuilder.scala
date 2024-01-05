@@ -20,10 +20,7 @@ object ApiBuilder {
         ec <- IO.executionContext.toResource
         client <-
           SimpleRestJsonBuilder(SmithyCodeGenerationService)
-            .client(
-              FetchClientBuilder[IO].create
-                .pipe(resetBaseUri)
-            )
+            .client(FetchClientBuilder[IO].create)
             .uri(Uri.unsafeFromString(baseUri))
             .resource
       } yield {
@@ -34,10 +31,4 @@ object ApiBuilder {
       }
 
     }
-
-  private def resetBaseUri(c: Client[IO]): Client[IO] = Client[IO] { req =>
-    val amendedUri = req.uri.copy(scheme = None, authority = None)
-    val amendedRequest = req.withUri(amendedUri)
-    c.run(amendedRequest)
-  }
 }
