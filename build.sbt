@@ -30,9 +30,15 @@ lazy val smithyClasspath = settingKey[Seq[ModuleID]](
 lazy val smithyClasspathDir = settingKey[String](
   """Path of the smithy classpath directory (where we mount the config and the jars)"""
 )
+lazy val resolveSmithyClasspath = taskKey[Seq[SmithyClasspathEntry]](
+  """Resolve the smithy classpath so it can be bundled in the docker image, or made available to run"""
+)
+lazy val dockerTagOverride = settingKey[Option[String]](
+  """Override for the docker image tag."""
+)
 
 lazy val root = (project in file("."))
-  .aggregate(api, frontend, backend, backendDependencies)
+  .aggregate(api, frontend, backend)
 
 lazy val api = (project in file("modules/api"))
 
@@ -73,10 +79,10 @@ lazy val frontend = (project in file("modules/frontend"))
   )
 
 lazy val smithyClasspathSettings = Def.settings(
-  Universal / mappings ++= {
+  resolveSmithyClasspath := {
     val depRes = dependencyResolution.value
     val artifacts = smithyClasspath.value
-    val smithyClasspathOutput = target.value / "smithy-classpath"
+    val smithyClasspathValue = smithyClasspathDir.value
     val logger = sLog.value
     val resolved = artifacts.flatMap { module =>
       depRes.retrieve(module, None, target.value, logger) match {
@@ -85,37 +91,62 @@ lazy val smithyClasspathSettings = Def.settings(
         case Right(value) => value.headOption.map(f => module -> f)
       }
     }
+
+    resolved.map { case (module, file) =>
+      SmithyClasspathEntry(
+        module,
+        file
+      )
+    }
+  },
+  Universal / mappings ++= {
     val smithyClasspathValue = smithyClasspathDir.value
-
-    val entries: Seq[SmithyClasspathEntry] =
-      resolved.map { case (module, file) =>
-        SmithyClasspathEntry(
-          module,
-          file,
-          s"$smithyClasspathValue/${file.name}"
-        )
-      }
-    val entriesMapping =
-      entries.map { case SmithyClasspathEntry(_, file, pathInImage) =>
-        file -> pathInImage
-      }
-
-    val smithyClasspathFile = target.value / "smithy-classpath.json"
-    SmithyClasspath.toFile(
+    val entries = resolveSmithyClasspath.value
+    entries.map { case SmithyClasspathEntry(_, file) =>
+      file -> s"$smithyClasspathValue/${file.name}"
+    }
+  },
+  Docker / mappings ++= {
+    val smithyClasspathValue = smithyClasspathDir.value
+    val entries = resolveSmithyClasspath.value
+    val smithyClasspathFile =
+      target.value / smithyClasspathValue / "docker" / "smithy-classpath.json"
+    val inDockerPath = (Docker / defaultLinuxInstallLocation).value
+    SmithyClasspath.jsonConfig(
       smithyClasspathFile,
-      entries,
-      (Docker / defaultLinuxInstallLocation).value
+      entries.map(sce =>
+        sce.module -> s"$inDockerPath/$smithyClasspathValue/${sce.file.name}"
+      )
     )
-    val configMapping = Seq(
-      smithyClasspathFile -> s"$smithyClasspathValue/smithy-classpath.json"
+    Seq(
+      smithyClasspathFile -> s"$inDockerPath/$smithyClasspathValue/smithy-classpath.json"
     )
-    entriesMapping ++ configMapping
   },
   dockerEnvVars ++= {
     val inDockerPath = (Docker / defaultLinuxInstallLocation).value
     val smithyClasspathValue = smithyClasspathDir.value
     Map(
       "SMITHY_CLASSPATH_CONFIG" -> s"$inDockerPath/$smithyClasspathValue/smithy-classpath.json"
+    )
+  },
+  reStart := {
+    val entries = resolveSmithyClasspath.value
+
+    val smithyClasspathValue = smithyClasspathDir.value
+    val smithyClasspathFile =
+      target.value / smithyClasspathValue / "reStart" / "smithy-classpath.json"
+    SmithyClasspath.jsonConfig(
+      smithyClasspathFile,
+      entries.map(sce => sce.module -> sce.file.getAbsolutePath())
+    )
+    reStart.evaluated
+  },
+  reStart / envVars ++= {
+    val smithyClasspathValue = smithyClasspathDir.value
+    val smithyClasspathFile =
+      target.value / smithyClasspathValue / "reStart" / "smithy-classpath.json"
+    Map(
+      "SMITHY_CLASSPATH_CONFIG" -> smithyClasspathFile.getAbsolutePath()
     )
   }
 )
@@ -142,8 +173,10 @@ lazy val backend = (project in file("modules/backend"))
       "software.amazon.smithy" % "smithy-model" % smithyVersion,
       "org.http4s" %% "http4s-ember-server" % http4sVersion
     ),
-    smithyClasspath := Seq.empty,
     smithyClasspathDir := "smithy-classpath",
+    smithyClasspath := Seq(
+      "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value
+    ),
     Compile / resourceGenerators += Def.task {
       val dir = frontend.base
       val distDir = dir / "dist"
@@ -167,58 +200,40 @@ lazy val backend = (project in file("modules/backend"))
     Docker / dockerExposedPorts := List(9000),
     Docker / packageName := "smithy4s-code-generation",
     Docker / dockerRepository := Some("daddykotex"),
-    dockerAliases ++= {
-      val sha = sys.env.get("GITHUB_SHA").map(_.take(10))
-      val latests = Seq(
+    dockerTagOverride := None,
+    dockerUpdateLatest := true,
+    dockerLabels ++= {
+      Map("smithy4s.version" -> smithy4sVersion.value)
+    },
+    dockerAliases := {
+      val flyAlias =
         dockerAlias.value
           .withName("morning-bird-7081")
           .withRegistryHost(Option("registry.fly.io"))
-      )
-      val shas = sha.toSeq.flatMap { s =>
-        Seq(
-          dockerAlias.value.withTag(Some(s)),
-          dockerAlias.value
-            .withTag(Some(s))
-            .withName("morning-bird-7081")
-            .withRegistryHost(Option("registry.fly.io"))
-        )
-      }
 
-      latests ++ shas
+      dockerTagOverride.value match {
+        case Some(tagOverride) =>
+          val v = version.value
+          val preciseTag = s"$tagOverride-$v"
+          val allTags =
+            if (dockerUpdateLatest.value) Seq(preciseTag, tagOverride)
+            else Seq(preciseTag)
+          allTags.flatMap(tag =>
+            Seq(
+              dockerAlias.value.withTag(Some(tag)),
+              flyAlias.withTag(Some(tag))
+            )
+          )
+        case None =>
+          val latests =
+            if (dockerUpdateLatest.value)
+              Seq(
+                dockerAlias.value.withTag(Some("latest")),
+                flyAlias.withTag(Some("latest"))
+              )
+            else Seq.empty
+          Seq(dockerAlias.value, flyAlias) ++ latests
+      }
     },
-    Docker / version := "latest",
     dockerBaseImage := "eclipse-temurin:17.0.6_10-jre"
-  )
-
-/** This is a project that's only intented to be a copy of backend but that
-  * builds in an image with some dependencies for the smithy-classpath.
-  */
-lazy val backendDependencies = project
-  .enablePlugins(DockerPlugin)
-  .settings(smithyClasspathSettings)
-  .settings(
-    smithyClasspath := Seq(
-      "com.disneystreaming.alloy" % "alloy-core" % "0.2.8",
-      "com.disneystreaming.smithy4s" % "smithy4s-protocol" % smithy4sVersion.value
-    ),
-    smithyClasspathDir := "smithy-classpath",
-    Docker / packageName := "smithy4s-code-generation",
-    Docker / dockerRepository := Some("daddykotex"),
-    dockerAliases := {
-      val beAlias = (backend / dockerAlias).value
-      val sha = sys.env.get("GITHUB_SHA").map(_.take(10))
-      val tags =
-        sha.map(s => s"with-dependencies-$s").toSeq ++ Seq("with-dependencies")
-      tags.flatMap { t =>
-        Seq(
-          dockerAlias.value.withTag(Some(t)),
-          dockerAlias.value
-            .withTag(Some(t))
-            .withName("morning-bird-7081")
-            .withRegistryHost(Option("registry.fly.io"))
-        )
-      }
-    },
-    dockerEntrypoint := (backend / dockerEntrypoint).value,
-    dockerBaseImage := (backend / dockerAlias).value.toString
   )
