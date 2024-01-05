@@ -2,10 +2,10 @@ import org.scalajs.linker.interface.ModuleSplitStyle
 import com.typesafe.sbt.packager.docker._
 import smithy4s_codegen._
 
-ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / organization := "com.example"
 ThisBuild / organizationName := "example"
 ThisBuild / scalaVersion := "2.13.10"
+ThisBuild / dynverSeparator := "-"
 
 val http4sVersion = "0.23.24"
 val smithyVersion = "1.41.1"
