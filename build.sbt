@@ -4,11 +4,11 @@ import smithy4s_codegen._
 
 ThisBuild / organization := "com.example"
 ThisBuild / organizationName := "example"
-ThisBuild / scalaVersion := "2.13.10"
+ThisBuild / scalaVersion := "2.13.14"
 ThisBuild / dynverSeparator := "-"
 
-val http4sVersion = "0.23.24"
-val smithyVersion = "1.41.1"
+val http4sVersion = "0.23.27"
+val smithyVersion = "1.45.0"
 val circeVersion = "0.14.1"
 val cirisVersion = "3.5.0"
 
