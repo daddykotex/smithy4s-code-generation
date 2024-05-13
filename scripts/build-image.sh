@@ -21,5 +21,5 @@ sbt "$publish_backend"
 
 # build backend w/ additional dependencies
 tag_override="set backend / dockerTagOverride := Some(\"with-dependencies\")"
-smithy_classpath="set backend / smithyClasspath ++= Seq(\"com.disneystreaming.alloy\" % \"alloy-core\" % \"0.2.8\")"
+smithy_classpath="set backend / smithyClasspath ++= Seq(\"com.disneystreaming.alloy\" % \"alloy-core\" % \"0.3.6\")"
 sbt "$tag_override; $smithy_classpath; $publish_backend"
