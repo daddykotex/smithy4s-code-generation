@@ -1,3 +1,7 @@
+# ⚠️ Repository unmaintained - use active fork at https://github.com/kubukoz/smithy4s-codegen-ui
+
+This repository has been sunset, please use the active fork at https://github.com/kubukoz/smithy4s-codegen-ui instead.
+
 # Generate Smithy4s code on the fly <!-- omit in toc -->
 
 - [Modules](#modules)
